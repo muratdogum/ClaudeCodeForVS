@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Include href="KnownImageIds.vsct" />
+
+  <Commands package="guidClaudeCodePackage">
+    <Groups>
+      <Group guid="guidClaudeCodeCmdSet" id="ToolsMenuGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+      <Group guid="guidClaudeCodeCmdSet" id="EditorContextGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <!-- View > Other Windows > Claude Code (also placed in the Tools menu below) -->
+      <Button guid="guidClaudeCodeCmdSet" id="OpenClaudeCommand" priority="0x0100" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Icon guid="ImageCatalogGuid" id="MessageBubble" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Claude Code</ButtonText>
+          <CanonicalName>.View.ClaudeCode</CanonicalName>
+          <LocCanonicalName>.View.ClaudeCode</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidClaudeCodeCmdSet" id="AddSelectionCommand" priority="0x0100" type="Button">
+        <Parent guid="guidClaudeCodeCmdSet" id="EditorContextGroup" />
+        <Icon guid="ImageCatalogGuid" id="CommentCode" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Seçimi Claude'a Ekle</ButtonText>
+          <CanonicalName>.ClaudeCode.AddSelectionToChat</CanonicalName>
+          <LocCanonicalName>.ClaudeCode.AddSelectionToChat</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidClaudeCodeCmdSet" id="ExplainSelectionCommand" priority="0x0101" type="Button">
+        <Parent guid="guidClaudeCodeCmdSet" id="EditorContextGroup" />
+        <Icon guid="ImageCatalogGuid" id="MessageBubble" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Claude ile Açıkla</ButtonText>
+          <CanonicalName>.ClaudeCode.ExplainSelection</CanonicalName>
+          <LocCanonicalName>.ClaudeCode.ExplainSelection</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <CommandPlacements>
+    <CommandPlacement guid="guidClaudeCodeCmdSet" id="OpenClaudeCommand" priority="0x0100">
+      <Parent guid="guidClaudeCodeCmdSet" id="ToolsMenuGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <Symbols>
+    <GuidSymbol name="guidClaudeCodePackage" value="{07cb461e-31c2-4301-8fe4-15963318e944}" />
+    <GuidSymbol name="guidClaudeCodeCmdSet" value="{036e1797-21af-431f-b48e-491727d946e5}">
+      <IDSymbol name="ToolsMenuGroup" value="0x1020" />
+      <IDSymbol name="EditorContextGroup" value="0x1021" />
+      <IDSymbol name="OpenClaudeCommand" value="0x0100" />
+      <IDSymbol name="AddSelectionCommand" value="0x0101" />
+      <IDSymbol name="ExplainSelectionCommand" value="0x0102" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

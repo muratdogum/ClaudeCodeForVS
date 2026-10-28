@@ -1,0 +1,49 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_FEEDBACK_COMMAND": "1",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
+  },
+  "enableArtifact": false,
+  "disableRemoteControl": true,
+  "cleanupPeriodDays": 14,
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Artifact",
+      "ArtifactComments",
+      "ArtifactData",
+      "ShareOnboardingGuide",
+      "PublishPlugin",
+      "RemoteTrigger",
+      "DesignSync",
+      "PushNotification",
+      "SendFeedback",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(scp *)",
+      "Bash(sftp *)",
+      "Bash(ftp *)",
+      "Bash(nc *)",
+      "PowerShell(Invoke-WebRequest *)",
+      "PowerShell(Invoke-RestMethod *)",
+      "PowerShell(Start-BitsTransfer *)",
+      "PowerShell(Send-MailMessage *)",
+      "PowerShell(scp *)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.pfx)",
+      "Read(**/*.p12)",
+      "Read(**/*.snk)",
+      "Read(**/secrets/**)",
+      "Read(**/appsettings.Production.json)"
+    ]
+  }
+}
