@@ -80,12 +80,35 @@ VS Code eklentisiyle ortaktır; birinde giriş yapmak yeterlidir.
   Kod bloklarındaki *Kopyala* ve *Ekle* butonları kodu panoya kopyalar ya da imlecin bulunduğu yere ekler.
 - `/` ile başlayan diğer komutlar (`/compact`, `/cost`, kendi komutlarınız) doğrudan Claude Code'a iletilir.
 
+## Terminal bağlantısı (/ide)
+
+Claude Code'u terminalde kullananlar için Visual Studio, VS Code'daki gibi bir IDE olarak görünür:
+
+- **Bağlanma:** *Araçlar > Claude Code'u Terminalde Aç* çözüm klasöründe bir terminal açar. Oturum bu Visual Studio'ya kendiliğinden
+  bağlanır ve panelle aynı gizlilik kurallarını kullanır. Başka bir terminalde çözüm klasöründe `claude` çalıştırıp `/ide` yazarak
+  listeden *Visual Studio*'yu da seçebilirsiniz.
+- **Seçili kod:** Editörde seçtiğiniz satırlar Claude'a bildirilir; terminalde "N satır seçili" olarak görünür.
+- **Hata Listesi:** Claude, `getDiagnostics` aracıyla Visual Studio'nun Hata Listesi'ndeki derleme ve IntelliSense hatalarını okuyabilir.
+- **Değişiklik onayı:** Claude bir dosyayı değiştirmek istediğinde öneri, Visual Studio'nun diff penceresinde *Kabul et / Reddet*
+  çubuğuyla açılır. Kabul etmeden önce sağ taraftaki metni düzenleyebilirsiniz; Claude düzenlenmiş hali kullanır. Pencereyi
+  kapatmak reddetmek sayılır. Terminalde yanıt verirseniz diff penceresi kendiliğinden kapanır.
+
+Bağlantı yalnızca `127.0.0.1` üzerinden kabul edilir. Her Visual Studio açılışında rastgele bir port ve anahtar üretilir; bunlar
+`%USERPROFILE%\.claude\ide\<port>.lock` dosyasına yazılır ve VS kapanınca dosya silinir. Anahtarı olmayan bağlantılar reddedilir.
+Gizlilik modunda korunan dosyalardaki seçimlerin metni gönderilmez. Bağlantıyı *Araçlar > Seçenekler > Claude Code > Terminal
+bağlantısı (/ide)* ayarıyla kapatabilirsiniz.
+
+Not: Terminal oturumunda CLI'ın kendi gizlilik ayarları (telemetri kapalı, ağ komutu ve korunan dosya kuralları) uygulanır. Panelin
+gizli bilgi taraması ve yerel gönderim günlüğü ise yalnızca paneldeki sohbet için geçerlidir.
+
 ## Ayarlar
 
-**Araçlar > Seçenekler > Claude Code > Genel**
+**Araçlar > Seçenekler > Claude Code > General**
 
 | Ayar | Açıklama |
 |---|---|
+| Arayüz dili | *Otomatik* (varsayılan) Visual Studio'nun dilini kullanır, desteklenmiyorsa İngilizce. Değişiklik hemen uygulanır; paneldeki eski mesajlar yazıldıkları dilde kalır |
+| Terminal bağlantısı (/ide) | Terminaldeki Claude Code'un bu Visual Studio'ya bağlanması (varsayılan: açık) |
 | claude.exe yolu | Boşsa otomatik aranır |
 | Model | `opus`, `sonnet`, `haiku`, `fable` veya tam model kimliği; boşsa varsayılan |
 | İzin modu | Yeni oturumların başlangıç modu |
@@ -196,10 +219,22 @@ değişirse eklentinin güncellenmesi gerekebilir.
 src/ClaudeCodeVS/
   Cli/          claude.exe bulma, süreç ve protokol (ClaudeProcess), oturum (ClaudeSession), kullanım, Job Object
   Ide/          aktif dosya/seçim, çözüm klasörü, dosya açma, diff önizleme
+  Ide/Bridge/   terminal bağlantısı (/ide): yerel WebSocket + MCP sunucusu, kilit dosyası, editör araçları, diff onayı
   UI/           Markdown görüntüleyici, araç çağrısı / izin / soru kartları, kullanım şeridi, tema
   ToolWindows/  araç penceresi ve sohbet kontrolü
   Commands/     menü komutları
   Options/      Araçlar > Seçenekler sayfası
+  Localization/ arayüz metinleri: L.T/L.F, dil başına bir JSON (DLL'e gömülü)
 ```
 
 `Cli/` klasörü Visual Studio'ya bağımlı değildir; ayrı bir .NET Framework uygulamasından da kullanılabilir.
+
+## Diller
+
+Arayüz 16 dilde: Türkçe, English, Deutsch, Français, Español, Italiano, Português (Brasil), Русский, Polski, Čeština,
+日本語, 한국어, 简体中文, 繁體中文, Nederlands, Українська.
+
+Kaynak metinler Türkçedir ve aynı zamanda çeviri anahtarıdır: kodda `L.T("Yeni sohbet")`, biçimli metinlerde
+`L.F("{0} mesaj", n)`, XAML'de `{loc:Loc 'Yeni sohbet'}` kullanılır. Çeviriler `src/ClaudeCodeVS/Localization/<dil>.json`
+dosyalarındadır (anahtar: Türkçe metin, değer: çeviri). Eksik bir çeviri önce İngilizceye, o da yoksa Türkçe metne düşer.
+Yeni bir metin eklediğinizde her JSON dosyasına karşılığını ekleyin; `{0}` gibi yer tutucular ve satır sonları korunmalıdır.

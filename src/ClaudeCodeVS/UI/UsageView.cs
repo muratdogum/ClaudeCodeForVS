@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -7,6 +7,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using ClaudeCodeVS.Cli;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -21,17 +22,19 @@ namespace ClaudeCodeVS.UI
         private readonly Border _details;
         private readonly TextBlock _stamp;
         private readonly Button _refresh;
+        private readonly Border _chipsHost;
         private UsageInfo _last;
 
         public UsageView()
         {
             var chipsHost = new Border { Background = Brushes.Transparent, Cursor = Cursors.Hand, CornerRadius = new CornerRadius(4), Child = _chips };
-            chipsHost.ToolTip = "Kullanım ayrıntılarını göster/gizle";
+            _chipsHost = chipsHost;
+            chipsHost.ToolTip = L.T("Kullanım ayrıntılarını göster/gizle");
             chipsHost.MouseEnter += (s, e) => chipsHost.Background = Theme.Hover;
             chipsHost.MouseLeave += (s, e) => chipsHost.Background = Brushes.Transparent;
             chipsHost.MouseLeftButtonUp += (s, e) => ToggleDetails();
 
-            _refresh = Ui.IconButton(Theme.Glyph.Refresh, () => RefreshRequested?.Invoke(), "Kullanım bilgisini yenile");
+            _refresh = Ui.IconButton(Theme.Glyph.Refresh, () => RefreshRequested?.Invoke(), L.T("Kullanım bilgisini yenile"));
             _refresh.FontSize = 11;
 
             var summary = new StackPanel { Orientation = Orientation.Horizontal };
@@ -56,7 +59,7 @@ namespace ClaudeCodeVS.UI
             _details.Bind(Border.BorderBrushProperty, Theme.PanelBorderKey);
             Details = _details;
 
-            _chips.Children.Add(Ui.Text("Kullanım…", Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0));
+            _chips.Children.Add(Ui.Text(L.T("Kullanım…"), Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0));
         }
 
         public event Action RefreshRequested;
@@ -65,24 +68,38 @@ namespace ClaudeCodeVS.UI
 
         public FrameworkElement Details { get; }
 
+        /// <summary>Re-applies the texts after the UI language changed; limit labels follow with the next refresh.</summary>
+        public void ApplyLanguage()
+        {
+            _chipsHost.ToolTip = L.T("Kullanım ayrıntılarını göster/gizle");
+            if (_last != null)
+            {
+                Show(_last);
+            }
+            else
+            {
+                _refresh.ToolTip = L.T("Kullanım bilgisini yenile");
+            }
+        }
+
         public void ShowLoading()
         {
             _refresh.Opacity = 0.4;
-            _refresh.ToolTip = "Yenileniyor…";
+            _refresh.ToolTip = L.T("Yenileniyor…");
         }
 
         public void Show(UsageInfo info)
         {
             _last = info;
             _refresh.Opacity = 1;
-            _refresh.ToolTip = "Kullanım bilgisini yenile";
+            _refresh.ToolTip = L.T("Kullanım bilgisini yenile");
             _chips.Children.Clear();
             _tiles.Children.Clear();
 
             if (!info.Available || info.Limits.Count == 0)
             {
-                _chips.Children.Add(Ui.Text("Limit bilgisi yok", Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0));
-                _tiles.Children.Add(Ui.Text("Bu hesap için plan kullanım limiti bilgisi yok (API anahtarıyla kullanımda limit gösterilmez).", Theme.MutedTextKey, 0.9));
+                _chips.Children.Add(Ui.Text(L.T("Limit bilgisi yok"), Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0));
+                _tiles.Children.Add(Ui.Text(L.T("Bu hesap için plan kullanım limiti bilgisi yok (API anahtarıyla kullanımda limit gösterilmez)."), Theme.MutedTextKey, 0.9));
             }
 
             foreach (var limit in info.Limits)
@@ -92,17 +109,17 @@ namespace ClaudeCodeVS.UI
             }
 
             _tiles.Columns = Math.Max(1, Math.Min(3, info.Limits.Count));
-            _stamp.Text = "Son güncelleme " + info.FetchedAt.ToLocalTime().ToString("HH:mm");
+            _stamp.Text = L.T("Son güncelleme ") + info.FetchedAt.ToLocalTime().ToString("HH:mm");
         }
 
         public void ShowError(string message)
         {
             _refresh.Opacity = 1;
-            _refresh.ToolTip = "Kullanım alınamadı: " + message + "\nTekrar denemek için tıklayın.";
+            _refresh.ToolTip = L.T("Kullanım alınamadı: ") + message + L.T("\nTekrar denemek için tıklayın.");
             if (_last == null)
             {
                 _chips.Children.Clear();
-                var failed = Ui.Text("Kullanım alınamadı", Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0);
+                var failed = Ui.Text(L.T("Kullanım alınamadı"), Theme.MutedTextKey, 0.9, wrap: false).WithMargin(6, 0, 6, 0);
                 failed.ToolTip = message;
                 _chips.Children.Add(failed);
             }
@@ -118,7 +135,7 @@ namespace ClaudeCodeVS.UI
             var percent = Clamp(limit.Percent);
             var text = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = Theme.BaseFontSize * 0.92 };
             text.Inlines.Add(new Run(limit.ShortLabel + " ").BindContent(TextElement.ForegroundProperty, Theme.MutedTextKey));
-            text.Inlines.Add(new Run($"%{Math.Round(limit.Percent)}") { FontWeight = FontWeights.SemiBold, Foreground = BarBrush(limit, percent) });
+            text.Inlines.Add(new Run(L.F("%{0}", Math.Round(limit.Percent))) { FontWeight = FontWeights.SemiBold, Foreground = BarBrush(limit, percent) });
             var reset = ShortReset(limit.ResetsAt);
             if (reset.Length > 0)
             {
@@ -128,7 +145,7 @@ namespace ClaudeCodeVS.UI
             var stack = new StackPanel { Margin = new Thickness(7, 2, 7, 2) };
             stack.Children.Add(text);
             stack.Children.Add(Bar(percent, BarBrush(limit, percent), 2).WithMargin(0, 2, 0, 0));
-            stack.ToolTip = $"{limit.Label}: %{Math.Round(limit.Percent)} kullanıldı\n{LongReset(limit.ResetsAt)}";
+            stack.ToolTip = L.F("{0}: %{1} kullanıldı\n{2}", limit.Label, Math.Round(limit.Percent), LongReset(limit.ResetsAt));
             return stack;
         }
 
@@ -137,7 +154,7 @@ namespace ClaudeCodeVS.UI
             var percent = Clamp(limit.Percent);
             var tile = new StackPanel { Margin = new Thickness(2, 0, 14, 0) };
             tile.Children.Add(Ui.Text(limit.Label.ToUpperInvariant(), Theme.MutedTextKey, 0.78, FontWeights.SemiBold, wrap: false));
-            var value = Ui.Text($"%{Math.Round(limit.Percent)}", sizeFactor: 1.6, weight: FontWeights.SemiBold, wrap: false).WithMargin(0, 2, 0, 3);
+            var value = Ui.Text(L.F("%{0}", Math.Round(limit.Percent)), sizeFactor: 1.6, weight: FontWeights.SemiBold, wrap: false).WithMargin(0, 2, 0, 3);
             value.Foreground = BarBrush(limit, percent);
             tile.Children.Add(value);
             tile.Children.Add(Bar(percent, BarBrush(limit, percent), 4));
@@ -192,15 +209,15 @@ namespace ClaudeCodeVS.UI
             var remaining = resetsAt.Value - DateTimeOffset.Now;
             if (remaining.TotalMinutes < 1)
             {
-                return "şimdi";
+                return L.T("şimdi");
             }
 
             if (remaining.TotalHours < 1)
             {
-                return $"{(int)Math.Ceiling(remaining.TotalMinutes)} dk";
+                return L.F("{0} dk", (int)Math.Ceiling(remaining.TotalMinutes));
             }
 
-            return remaining.TotalDays < 1 ? $"{(int)remaining.TotalHours} sa" : $"{(int)remaining.TotalDays} g";
+            return remaining.TotalDays < 1 ? L.F("{0} sa", (int)remaining.TotalHours) : L.F("{0} g", (int)remaining.TotalDays);
         }
 
         private static string LongReset(DateTimeOffset? resetsAt)
@@ -213,17 +230,17 @@ namespace ClaudeCodeVS.UI
             var remaining = resetsAt.Value - DateTimeOffset.Now;
             if (remaining.TotalMinutes < 1)
             {
-                return "Birazdan sıfırlanır";
+                return L.T("Birazdan sıfırlanır");
             }
 
             if (remaining.TotalHours < 1)
             {
-                return $"{(int)Math.Ceiling(remaining.TotalMinutes)} dk sonra sıfırlanır";
+                return L.F("{0} dk sonra sıfırlanır", (int)Math.Ceiling(remaining.TotalMinutes));
             }
 
             return remaining.TotalDays < 1
-                ? $"{(int)remaining.TotalHours} saat sonra sıfırlanır"
-                : $"{(int)remaining.TotalDays} gün sonra sıfırlanır";
+                ? L.F("{0} saat sonra sıfırlanır", (int)remaining.TotalHours)
+                : L.F("{0} gün sonra sıfırlanır", (int)remaining.TotalDays);
         }
     }
 }

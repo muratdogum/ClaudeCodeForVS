@@ -7,6 +7,7 @@ using System.Windows.Controls.Primitives;
 using ClaudeCodeVS.Cli;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -52,10 +53,10 @@ namespace ClaudeCodeVS.UI
                     Children.Add(toggle);
                 }
 
-                var other = new TextBox { Margin = new Thickness(0, 2, 0, 0), MinWidth = 200, ToolTip = "Seçeneklerin dışında bir yanıt (isteğe bağlı)" };
+                var other = new TextBox { Margin = new Thickness(0, 2, 0, 0), MinWidth = 200, ToolTip = L.T("Seçeneklerin dışında bir yanıt (isteğe bağlı)") };
                 other.SetResourceReference(StyleProperty, VsResourceKeys.TextBoxStyleKey);
                 var otherRow = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
-                var otherLabel = Ui.Text("Diğer:", Theme.MutedTextKey, wrap: false);
+                var otherLabel = Ui.Text(L.T("Diğer:"), Theme.MutedTextKey, wrap: false);
                 otherLabel.VerticalAlignment = VerticalAlignment.Center;
                 otherLabel.Margin = new Thickness(0, 0, 6, 0);
                 DockPanel.SetDock(otherLabel, Dock.Left);

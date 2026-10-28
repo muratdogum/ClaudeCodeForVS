@@ -70,6 +70,10 @@
     <Compile Include="Ide\ContextItem.cs" />
     <Compile Include="Ide\DiffPreview.cs" />
     <Compile Include="Ide\IdeService.cs" />
+    <Compile Include="Ide\Bridge\DiffSessions.cs" />
+    <Compile Include="Ide\Bridge\IdeBridge.cs" />
+    <Compile Include="Ide\Bridge\IdeTools.cs" />
+    <Compile Include="Ide\Bridge\WebSocketServer.cs" />
     <Compile Include="ToolWindows\ClaudeToolWindow.cs" />
     <Compile Include="ToolWindows\ClaudeChatControl.xaml.cs">
       <DependentUpon>ClaudeChatControl.xaml</DependentUpon>
@@ -83,6 +87,16 @@
     <Compile Include="UI\ToolCallView.cs" />
     <Compile Include="UI\Ui.cs" />
     <Compile Include="UI\UsageView.cs" />
+    <Compile Include="Localization\L.cs" />
+    <Compile Include="Localization\LocAttributes.cs" />
+    <Compile Include="Localization\LocExtension.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- One translation file per language; the Turkish source text is the key (see Localization\L.cs). -->
+    <EmbeddedResource Include="Localization\*.json">
+      <LogicalName>ClaudeCodeVS.Localization.%(Filename).json</LogicalName>
+      <WithCulture>false</WithCulture>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Page Include="ToolWindows\ClaudeChatControl.xaml">

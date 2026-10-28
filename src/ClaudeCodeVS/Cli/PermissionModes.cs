@@ -1,3 +1,5 @@
+using ClaudeCodeVS.Localization;
+
 namespace ClaudeCodeVS.Cli
 {
     public enum PermissionModeOption
@@ -49,11 +51,11 @@ namespace ClaudeCodeVS.Cli
         {
             switch (mode)
             {
-                case PermissionModeOption.AcceptEdits: return "Düzenlemeleri kabul et";
-                case PermissionModeOption.Plan: return "Plan modu";
-                case PermissionModeOption.Auto: return "Otomatik mod";
-                case PermissionModeOption.BypassPermissions: return "İzinleri atla (tehlikeli)";
-                default: return "Her işlemde sor";
+                case PermissionModeOption.AcceptEdits: return L.T("Düzenlemeleri kabul et");
+                case PermissionModeOption.Plan: return L.T("Plan modu");
+                case PermissionModeOption.Auto: return L.T("Otomatik mod");
+                case PermissionModeOption.BypassPermissions: return L.T("İzinleri atla (tehlikeli)");
+                default: return L.T("Her işlemde sor");
             }
         }
     }

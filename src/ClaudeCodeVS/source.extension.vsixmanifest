@@ -3,11 +3,11 @@
   <Metadata>
     <Identity Id="ClaudeCodeVS.47c6b04c-8d76-4c4d-b568-af03fb8486bf" Version="0.9.0" Language="en-US" Publisher="Codecraftopia" />
     <DisplayName>Codecraftopia Agent for Claude Code</DisplayName>
-    <Description xml:space="preserve">Claude Code'u Visual Studio içinde sohbet paneli olarak kullanın: izin kartları, diff önizleme, geçmiş, @dosya ve /komut, görseller, kurumsal gizlilik modu. Use the Claude Code CLI as a chat panel in Visual Studio (Turkish UI). Unofficial; not affiliated with Anthropic.</Description>
+    <Description xml:space="preserve">Claude Code'u Visual Studio içinde sohbet paneli olarak kullanın: izin kartları, diff önizleme, geçmiş, @dosya ve /komut, görseller, kurumsal gizlilik modu. Use the Claude Code CLI as a chat panel in Visual Studio: permission cards, diff preview, history, @file and /commands, images, corporate privacy mode. UI in 16 languages. Unofficial; not affiliated with Anthropic.</Description>
     <License>LICENSE.txt</License>
     <Icon>Resources\Icon.png</Icon>
     <PreviewImage>Resources\Preview.png</PreviewImage>
-    <Tags>claude, claude code, anthropic, ai, agent, chat, assistant, copilot alternative, türkçe</Tags>
+    <Tags>claude, claude code, anthropic, ai, agent, chat, assistant, copilot alternative, türkçe, multilingual</Tags>
     <Preview>true</Preview>
   </Metadata>
   <Installation>

@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -133,7 +134,7 @@ namespace ClaudeCodeVS.UI
             {
                 var remove = Glyph(Theme.Glyph.Cancel, 8).Bind(TextBlock.ForegroundProperty, Theme.MutedTextKey).WithMargin(7, 1, 0, 0);
                 remove.Cursor = Cursors.Hand;
-                remove.ToolTip = "Kaldır";
+                remove.ToolTip = L.T("Kaldır");
                 remove.MouseLeftButtonUp += (s, e) => onRemove();
                 panel.Children.Add(remove);
             }
@@ -203,7 +204,7 @@ namespace ClaudeCodeVS.UI
                 return text ?? string.Empty;
             }
 
-            return text.Substring(0, maxLength) + $"\n… ({text.Length - maxLength} karakter daha)";
+            return text.Substring(0, maxLength) + L.F("\n… ({0} karakter daha)", text.Length - maxLength);
         }
 
         public static T WithMargin<T>(this T element, double left, double top, double right, double bottom)
@@ -222,7 +223,7 @@ namespace ClaudeCodeVS.UI
 
             if (lines.Length > max)
             {
-                panel.Children.Add(DiffLine($"  … {lines.Length - max} satır daha", null));
+                panel.Children.Add(DiffLine(L.F("  … {0} satır daha", lines.Length - max), null));
             }
         }
 

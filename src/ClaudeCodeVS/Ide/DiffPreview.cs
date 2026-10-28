@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Newtonsoft.Json.Linq;
 using Task = System.Threading.Tasks.Task;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Ide
 {
@@ -23,12 +24,12 @@ namespace ClaudeCodeVS.Ide
             var path = input.Str("file_path");
             if (string.IsNullOrEmpty(path))
             {
-                throw new InvalidOperationException("Önizleme için dosya yolu bulunamadı.");
+                throw new InvalidOperationException(L.T("Önizleme için dosya yolu bulunamadı."));
             }
 
             var original = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
             var proposed = Apply(toolName, original, input)
-                ?? throw new InvalidOperationException("Önizleme oluşturulamadı: değiştirilecek metin dosyada bulunamadı (dosya bu arada değişmiş olabilir).");
+                ?? throw new InvalidOperationException(L.T("Önizleme oluşturulamadı: değiştirilecek metin dosyada bulunamadı (dosya bu arada değişmiş olabilir)."));
 
             var folder = Path.Combine(TempRoot, Guid.NewGuid().ToString("N").Substring(0, 8));
             var name = Path.GetFileName(path);
@@ -42,16 +43,16 @@ namespace ClaudeCodeVS.Ide
             await package.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (!(await package.GetServiceAsync(typeof(SVsDifferenceService)) is IVsDifferenceService diff))
             {
-                throw new InvalidOperationException("Visual Studio diff servisi kullanılamıyor.");
+                throw new InvalidOperationException(L.T("Visual Studio diff servisi kullanılamıyor."));
             }
 
             diff.OpenComparisonWindow2(
                 left,
                 right,
-                $"{name} (Claude önerisi)",
+                L.F("{0} (Claude önerisi)", name),
                 path,
-                $"{name} (mevcut)",
-                $"{name} (önerilen)",
+                L.F("{0} (mevcut)", name),
+                L.F("{0} (önerilen)", name),
                 null,
                 null,
                 (uint)(__VSDIFFSERVICEOPTIONS.VSDIFFOPT_LeftFileIsTemporary | __VSDIFFSERVICEOPTIONS.VSDIFFOPT_RightFileIsTemporary));

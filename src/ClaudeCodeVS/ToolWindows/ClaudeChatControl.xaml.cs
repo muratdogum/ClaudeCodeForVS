@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,6 +19,7 @@ using ClaudeCodeVS.UI;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json.Linq;
 using Task = System.Threading.Tasks.Task;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.ToolWindows
 {
@@ -191,6 +192,7 @@ namespace ClaudeCodeVS.ToolWindows
                 }
             };
             Loaded += OnLoaded;
+            L.LanguageChanged += OnLanguageChanged;
 
             ShowWelcome();
             RenderStatus();
@@ -218,7 +220,7 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (CurrentPolicy().IsProtected(item.FilePath))
             {
-                AddNotice($"{item.FileName} korunan bir dosya; gizlilik ayarları gereği Claude'a eklenmedi.", NoticeKind.Info);
+                AddNotice(L.F("{0} korunan bir dosya; gizlilik ayarları gereği Claude'a eklenmedi.", item.FileName), NoticeKind.Info);
                 return;
             }
 
@@ -248,6 +250,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
 
             _disposed = true;
+            L.LanguageChanged -= OnLanguageChanged;
             _spinnerTimer.Stop();
             _usageTimer.Stop();
             if (_windowEvents != null && ThreadHelper.CheckAccess())
@@ -314,6 +317,39 @@ namespace ClaudeCodeVS.ToolWindows
             RequestAuthRefresh(force: true);
         }
 
+        // XAML texts follow the language through bindings; everything built in code is rebuilt here.
+        // Messages already in the transcript keep the language they were written in.
+        private void OnLanguageChanged(object sender, EventArgs e)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Post(() => OnLanguageChanged(sender, e));
+                return;
+            }
+
+            ThreadHelper.ThrowIfNotOnUIThread();
+            PopulateModeCombo(PermissionModes.FromCli(SelectedModeValue()));
+            PopulateModelCombo(_session.Models, SelectedModelValue());
+            _historyView.ApplyLanguage();
+            _usage.ApplyLanguage();
+            if (_welcome != null)
+            {
+                ShowWelcome();
+                if (_auth != null && !_auth.LoggedIn)
+                {
+                    _loginCard = null;
+                    ShowLoginCard(null);
+                }
+            }
+
+            RenderAttachedContext();
+            RefreshActiveContext();
+            UpdatePrivacyBadge();
+            UpdateAccountBadge();
+            RenderStatus();
+            RequestUsageRefresh(force: true);
+        }
+
         private void OnWindowActivated(EnvDTE.Window gotFocus, EnvDTE.Window lostFocus)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -363,7 +399,7 @@ namespace ClaudeCodeVS.ToolWindows
             var title = Ui.Text("Claude Code", Theme.TextKey, 1.7, FontWeights.SemiBold, wrap: false).WithMargin(0, 2, 0, 6);
             title.HorizontalAlignment = HorizontalAlignment.Center;
             panel.Children.Add(title);
-            var subtitle = Ui.Text("Kodunuz hakkında soru sorun, değişiklik isteyin veya bir görevi devredin. Claude'un yapmak istediği işlemler için burada onayınız istenir.", Theme.MutedTextKey);
+            var subtitle = Ui.Text(L.T("Kodunuz hakkında soru sorun, değişiklik isteyin veya bir görevi devredin. Claude'un yapmak istediği işlemler için burada onayınız istenir."), Theme.MutedTextKey);
             subtitle.TextAlignment = TextAlignment.Center;
             subtitle.FontSize = Theme.ChatFontSize * 0.95;
             panel.Children.Add(subtitle.WithMargin(0, 0, 0, 20));
@@ -371,10 +407,10 @@ namespace ClaudeCodeVS.ToolWindows
             var suggestions = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
             foreach (var (glyph, label, prompt) in new[]
             {
-                (Theme.Glyph.Document, "Bu projeyi açıkla", "Bu projenin ne yaptığını, yapısını ve önemli dosyalarını kısaca açıkla."),
-                (Theme.Glyph.Bug, "Hata ara", "Kod tabanında olası hataları ve riskli noktaları bul; önem sırasına göre listele."),
-                (Theme.Glyph.Check, "Test yaz", "Aktif dosyadaki kod için birim testleri öner ve yaz."),
-                (Theme.Glyph.Lightning, "Kodu iyileştir", "Aktif dosyadaki kodu okunabilirlik ve performans açısından incele; iyileştirmeler öner."),
+                (Theme.Glyph.Document, L.T("Bu projeyi açıkla"), L.T("Bu projenin ne yaptığını, yapısını ve önemli dosyalarını kısaca açıkla.")),
+                (Theme.Glyph.Bug, L.T("Hata ara"), L.T("Kod tabanında olası hataları ve riskli noktaları bul; önem sırasına göre listele.")),
+                (Theme.Glyph.Check, L.T("Test yaz"), L.T("Aktif dosyadaki kod için birim testleri öner ve yaz.")),
+                (Theme.Glyph.Lightning, L.T("Kodu iyileştir"), L.T("Aktif dosyadaki kodu okunabilirlik ve performans açısından incele; iyileştirmeler öner.")),
             })
             {
                 var content = new StackPanel { Orientation = Orientation.Horizontal };
@@ -389,7 +425,7 @@ namespace ClaudeCodeVS.ToolWindows
             panel.Children.Add(suggestions);
 
             var hints = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 18, 0, 0) };
-            foreach (var (key, action) in new[] { ("Enter", "gönder"), ("Shift+Enter", "yeni satır"), ("Esc", "durdur"), ("↑", "önceki mesaj"), ("/clear", "yeni sohbet") })
+            foreach (var (key, action) in new[] { ("Enter", L.T("gönder")), ("Shift+Enter", L.T("yeni satır")), ("Esc", L.T("durdur")), ("↑", L.T("önceki mesaj")), ("/clear", L.T("yeni sohbet")) })
             {
                 hints.Children.Add(KeyHint(key, action));
             }
@@ -433,7 +469,7 @@ namespace ClaudeCodeVS.ToolWindows
             var executable = ClaudeCliLocator.Locate(configured);
             if (executable != null)
             {
-                _welcomeStatus.Text = "Çalışma klasörü: " + (_cwd ?? "-");
+                _welcomeStatus.Text = L.T("Çalışma klasörü: ") + (_cwd ?? "-");
                 _welcomeStatus.ToolTip = "claude: " + executable;
                 _welcomeStatus.SetResourceReference(TextBlock.ForegroundProperty, Theme.MutedTextKey);
             }
@@ -502,15 +538,14 @@ namespace ClaudeCodeVS.ToolWindows
             if (_auth != null && !_auth.LoggedIn)
             {
                 InputBox.Text = text;
-                ShowLoginCard("Mesaj göndermek için önce Claude Code'a giriş yapın.");
+                ShowLoginCard(L.T("Mesaj göndermek için önce Claude Code'a giriş yapın."));
                 return;
             }
 
             if (policy.Enabled && _auth != null && _auth.LoggedIn && !_auth.MatchesOrganization(_package.Options.ExpectedOrganization))
             {
                 InputBox.Text = text;
-                AddNotice($"Claude Code \"{_auth.ShortName}\" hesabıyla açık; şirket ayarlarında beklenen kuruluş \"{_package.Options.ExpectedOrganization}\". "
-                    + "Gizlilik modunda başka bir hesaba kod gönderilmez. Hesabı değiştirin veya ayarı güncelleyin.", NoticeKind.Error);
+                AddNotice(L.F("Claude Code \"{0}\" hesabıyla açık; şirket ayarlarında beklenen kuruluş \"{1}\". Gizlilik modunda başka bir hesaba kod gönderilmez. Hesabı değiştirin veya ayarı güncelleyin.", _auth.ShortName, _package.Options.ExpectedOrganization), NoticeKind.Error);
                 ShowAccountCard();
                 return;
             }
@@ -521,7 +556,7 @@ namespace ClaudeCodeVS.ToolWindows
             if (blocked.Count > 0)
             {
                 InputBox.Text = text;
-                AddNotice("Korunan dosyalar gizlilik ayarları gereği Claude'a gönderilemez: " + string.Join(", ", blocked.Select(Path.GetFileName)), NoticeKind.Info);
+                AddNotice(L.T("Korunan dosyalar gizlilik ayarları gereği Claude'a gönderilemez: ") + string.Join(", ", blocked.Select(Path.GetFileName)), NoticeKind.Info);
                 FocusInput();
                 return;
             }
@@ -548,13 +583,13 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (text.Length == 0)
             {
-                text = images.Count > 0 && contexts.Count == 0 ? "Eklenen görseli incele." : "Eklenen kodu incele.";
+                text = images.Count > 0 && contexts.Count == 0 ? L.T("Eklenen görseli incele.") : L.T("Eklenen kodu incele.");
             }
 
             int maskedSecrets = 0;
             if (policy.Enabled && policy.ScanSecrets && !isCommand)
             {
-                var findings = new List<(string Source, IReadOnlyList<SecretMatch> Matches)> { ("Mesaj", SecretScanner.Scan(text)) };
+                var findings = new List<(string Source, IReadOnlyList<SecretMatch> Matches)> { (L.T("Mesaj"), SecretScanner.Scan(text)) };
                 findings.AddRange(contexts.Where(c => c.HasSelection).Select(c => (c.DisplayName, SecretScanner.Scan(c.SelectedText))));
                 if (findings.Any(f => f.Matches.Count > 0))
                 {
@@ -586,10 +621,10 @@ namespace ClaudeCodeVS.ToolWindows
             AddUserMessage(text, isCommand ? new List<ContextItem>() : contexts, images);
             if (maskedSecrets > 0)
             {
-                AddNotice($"{maskedSecrets} gizli değer «GİZLİ» ile maskelenerek gönderildi.", NoticeKind.Info);
+                AddNotice(L.F("{0} gizli değer {1} ile maskelenerek gönderildi.", maskedSecrets, SecretScanner.Mask), NoticeKind.Info);
             }
             _turnHadText = false;
-            SetBusy(true, "Başlatılıyor…");
+            SetBusy(true, L.T("Başlatılıyor…"));
 
             try
             {
@@ -601,10 +636,10 @@ namespace ClaudeCodeVS.ToolWindows
                 await EnsureSessionAsync();
                 var auditAttachments = contexts.Select(c => c.HasSelection ? $"{c.FilePath}:{c.StartLine}-{c.EndLine}" : c.FilePath)
                     .Concat(mentioned)
-                    .Concat(images.Select(i => $"[görsel] {i.Name}"));
+                    .Concat(images.Select(i => L.F("[görsel] {0}", i.Name)));
                 _audit.Prompt(_cwd, _session.SessionId, text, auditAttachments, maskedSecrets);
                 _session.SendUserMessage(isCommand ? text : ComposePrompt(text, contexts), images.Select(i => i.Content).ToList());
-                SetStatus("Claude düşünüyor…");
+                SetStatus(L.T("Claude düşünüyor…"));
             }
             catch (Exception ex)
             {
@@ -639,12 +674,12 @@ namespace ClaudeCodeVS.ToolWindows
             string resume = null;
             if (_session.IsRunning && !sameDirectory)
             {
-                AddNotice($"Çalışma klasörü değişti, yeni oturum başlatılıyor: {_cwd}", NoticeKind.Info);
+                AddNotice(L.F("Çalışma klasörü değişti, yeni oturum başlatılıyor: {0}", _cwd), NoticeKind.Info);
                 _session.Reset();
             }
             else if (_session.IsRunning)
             {
-                AddNotice("Gizlilik/sağlayıcı ayarları değişti; konuşma yeni ayarlarla sürdürülüyor.", NoticeKind.Info);
+                AddNotice(L.T("Gizlilik/sağlayıcı ayarları değişti; konuşma yeni ayarlarla sürdürülüyor."), NoticeKind.Info);
                 resume = _session.SessionId;
                 _session.Stop();
             }
@@ -679,7 +714,7 @@ namespace ClaudeCodeVS.ToolWindows
             };
             _sessionPolicyKey = policyKey;
 
-            SetStatus(resume != null ? "Oturum sürdürülüyor…" : "Claude Code başlatılıyor…");
+            SetStatus(resume != null ? L.T("Oturum sürdürülüyor…") : L.T("Claude Code başlatılıyor…"));
             try
             {
                 await _session.StartAsync(launch);
@@ -687,7 +722,7 @@ namespace ClaudeCodeVS.ToolWindows
             catch (Exception) when (resume != null)
             {
                 await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
-                AddNotice("Önceki oturum sürdürülemedi, yeni oturum başlatılıyor.", NoticeKind.Info);
+                AddNotice(L.T("Önceki oturum sürdürülemedi, yeni oturum başlatılıyor."), NoticeKind.Info);
                 _session.Reset();
                 launch.ResumeSessionId = null;
                 await _session.StartAsync(launch);
@@ -756,7 +791,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
 
             _interruptRequested = true;
-            SetStatus("Durduruluyor…");
+            SetStatus(L.T("Durduruluyor…"));
             try
             {
                 await _session.InterruptAsync();
@@ -767,8 +802,8 @@ namespace ClaudeCodeVS.ToolWindows
                 await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
                 _session.Stop();
                 FinishStreaming();
-                CancelPendingCards("Durduruldu");
-                AddNotice("Claude Code durduruldu.", NoticeKind.Muted);
+                CancelPendingCards(L.T("Durduruldu"));
+                AddNotice(L.T("Claude Code durduruldu."), NoticeKind.Muted);
                 SetBusy(false);
             }
         }
@@ -796,7 +831,7 @@ namespace ClaudeCodeVS.ToolWindows
                     }
                     catch (Exception ex)
                     {
-                        AddNotice("Arayüz hatası: " + ex.Message, NoticeKind.Error);
+                        AddNotice(L.T("Arayüz hatası: ") + ex.Message, NoticeKind.Error);
                     }
                 }
             }).FileAndForget("ClaudeCodeVS/drain");
@@ -828,7 +863,7 @@ namespace ClaudeCodeVS.ToolWindows
                     var id = message.Str("request_id");
                     if (id != null && _pendingCards.TryGetValue(id, out var card))
                     {
-                        card.Resolve("İstek iptal edildi", Theme.Warning);
+                        card.Resolve(L.T("İstek iptal edildi"), Theme.Warning);
                         _pendingCards.Remove(id);
                     }
 
@@ -850,7 +885,7 @@ namespace ClaudeCodeVS.ToolWindows
                     if (sessionId != null && sessionId != _announcedSessionId)
                     {
                         _announcedSessionId = sessionId;
-                        AddNotice($"Oturum hazır · {_activeModel} · {message.Str("cwd")}", NoticeKind.Muted);
+                        AddNotice(L.F("Oturum hazır · {0} · {1}", _activeModel, message.Str("cwd")), NoticeKind.Muted);
                     }
 
                     break;
@@ -858,12 +893,12 @@ namespace ClaudeCodeVS.ToolWindows
                     SyncModeCombo(message.Str("permissionMode"));
                     if (message.Str("status") == "compacting")
                     {
-                        SetStatus("Konuşma özetleniyor…");
+                        SetStatus(L.T("Konuşma özetleniyor…"));
                     }
 
                     break;
                 case "compact_boundary":
-                    AddNotice("Konuşma geçmişi özetlendi.", NoticeKind.Muted);
+                    AddNotice(L.T("Konuşma geçmişi özetlendi."), NoticeKind.Muted);
                     break;
             }
         }
@@ -887,10 +922,10 @@ namespace ClaudeCodeVS.ToolWindows
                             _streamingText = AddAssistantText();
                             break;
                         case "thinking":
-                            SetStatus("Düşünüyor…");
+                            SetStatus(L.T("Düşünüyor…"));
                             break;
                         case "tool_use":
-                            SetStatus($"{block.Str("name")} hazırlanıyor…");
+                            SetStatus(L.F("{0} hazırlanıyor…", block.Str("name")));
                             break;
                     }
 
@@ -906,7 +941,7 @@ namespace ClaudeCodeVS.ToolWindows
 
                         _streamingText.Append(delta.Str("text"));
                         _turnHadText = true;
-                        SetStatus("Yazıyor…");
+                        SetStatus(L.T("Yazıyor…"));
                     }
 
                     break;
@@ -975,7 +1010,7 @@ namespace ClaudeCodeVS.ToolWindows
 
                     EnsureTurnHeader();
                     Append(view);
-                    SetStatus($"{block.Str("name")} çalışıyor…");
+                    SetStatus(L.F("{0} çalışıyor…", block.Str("name")));
                 }
             }
         }
@@ -999,14 +1034,14 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (_busy)
             {
-                SetStatus("Claude düşünüyor…");
+                SetStatus(L.T("Claude düşünüyor…"));
             }
         }
 
         private void HandleResult(JObject message)
         {
             FinishStreaming();
-            CancelPendingCards("İptal edildi");
+            CancelPendingCards(L.T("İptal edildi"));
 
             var subtype = message.Str("subtype") ?? string.Empty;
             bool isError = message.Bool("is_error") || subtype.StartsWith("error", StringComparison.Ordinal);
@@ -1014,12 +1049,12 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (_interruptRequested)
             {
-                AddNotice("■ Durduruldu.", NoticeKind.Muted);
+                AddNotice(L.T("■ Durduruldu."), NoticeKind.Muted);
             }
             else if (_stoppedByUser)
             {
                 // A denial with interrupt ends the turn as an error; it is the user's choice, not a failure.
-                AddNotice("■ Reddedildi. Claude talimatınızı bekliyor.", NoticeKind.Muted);
+                AddNotice(L.T("■ Reddedildi. Claude talimatınızı bekliyor."), NoticeKind.Muted);
             }
             else if (isError)
             {
@@ -1029,7 +1064,7 @@ namespace ClaudeCodeVS.ToolWindows
                     errorText = string.Join("\n", errors.Select(e => e.Type == JTokenType.String ? (string)e : e.ToString()));
                 }
 
-                AddNotice(string.IsNullOrWhiteSpace(errorText) ? $"Claude Code bir hata bildirdi ({subtype})." : errorText, NoticeKind.Error);
+                AddNotice(string.IsNullOrWhiteSpace(errorText) ? L.F("Claude Code bir hata bildirdi ({0}).", subtype) : errorText, NoticeKind.Error);
                 if (LooksLikeAuthError(errorText))
                 {
                     HandleAuthProblem();
@@ -1046,29 +1081,29 @@ namespace ClaudeCodeVS.ToolWindows
                 var seconds = (message.Num("duration_ms") ?? 0) / 1000.0;
                 var steps = (int)(message.Num("num_turns") ?? 0);
                 var cost = message.Num("total_cost_usd");
-                var stats = $"{(isError ? "✗" : "✓")} {steps} adım · {seconds:0.0} sn";
+                var stats = L.F("{0} {1} adım · {2:0.0} sn", (isError ? "✗" : "✓"), steps, seconds);
 
                 // total_cost_usd is the CLI's API-price estimate. On a Pro/Max/Team/Enterprise login nothing is
                 // billed per token (usage counts against the plan limits shown in the header), so it is only
                 // shown when the account is known to pay per token.
                 if (cost > 0 && _billedPerToken == true)
                 {
-                    stats += $" · API maliyeti ${cost:0.0000}";
+                    stats += L.F(" · API maliyeti ${0:0.0000}", cost);
                 }
 
                 var shared = _turnShared.Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 if (shared.Count > 0)
                 {
-                    stats += $" · ↑ {shared.Count} dosya/konum modelle paylaşıldı";
+                    stats += L.F(" · ↑ {0} dosya/konum modelle paylaşıldı", shared.Count);
                 }
 
                 var statsText = Ui.Text(stats, Theme.MutedTextKey, 0.82, wrap: false);
                 statsText.VerticalAlignment = VerticalAlignment.Center;
                 if (shared.Count > 0)
                 {
-                    statsText.ToolTip = "Bu turda içeriği modele gönderilen dosyalar ve aranan konumlar:\n"
+                    statsText.ToolTip = L.T("Bu turda içeriği modele gönderilen dosyalar ve aranan konumlar:\n")
                         + string.Join("\n", shared.Take(30).Select(p => "• " + ((IChatHost)this).ToDisplayPath(p)))
-                        + (shared.Count > 30 ? $"\n… ve {shared.Count - 30} tane daha" : string.Empty);
+                        + (shared.Count > 30 ? L.F("\n… ve {0} tane daha", shared.Count - 30) : string.Empty);
                 }
 
                 var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
@@ -1087,7 +1122,7 @@ namespace ClaudeCodeVS.ToolWindows
                         catch (System.Runtime.InteropServices.COMException)
                         {
                         }
-                    }, "Claude'un bu turdaki yanıtını kopyala");
+                    }, L.T("Claude'un bu turdaki yanıtını kopyala"));
                     copy.FontSize = 10;
                     copy.Padding = new Thickness(5, 2, 5, 2);
                     copy.Margin = new Thickness(6, 0, 0, 0);
@@ -1151,10 +1186,10 @@ namespace ClaudeCodeVS.ToolWindows
         private void HandleExit(ClaudeExitedEventArgs e)
         {
             FinishStreaming();
-            CancelPendingCards("Oturum sonlandı");
+            CancelPendingCards(L.T("Oturum sonlandı"));
             if (_busy || e.ExitCode != 0)
             {
-                var text = $"Claude Code süreci kapandı (çıkış kodu {e.ExitCode?.ToString() ?? "?"}).";
+                var text = L.F("Claude Code süreci kapandı (çıkış kodu {0}).", e.ExitCode?.ToString() ?? "?");
                 if (!string.IsNullOrWhiteSpace(e.StandardErrorTail))
                 {
                     text += "\n" + e.StandardErrorTail;
@@ -1185,7 +1220,7 @@ namespace ClaudeCodeVS.ToolWindows
             {
                 try
                 {
-                    _session.RejectControlRequest(requestId, "Visual Studio eklentisi bu isteği desteklemiyor: " + request.Str("subtype"));
+                    _session.RejectControlRequest(requestId, L.T("Visual Studio eklentisi bu isteği desteklemiyor: ") + request.Str("subtype"));
                 }
                 catch (ClaudeProcessException)
                 {
@@ -1220,7 +1255,7 @@ namespace ClaudeCodeVS.ToolWindows
             EnsureTurnHeader();
             Append(card);
             _stickToBottom = true;
-            SetStatus("Onayınız bekleniyor…");
+            SetStatus(L.T("Onayınız bekleniyor…"));
         }
 
         private PermissionCardView BuildToolPermissionCard(string requestId, JObject request, string tool, JObject input)
@@ -1241,7 +1276,7 @@ namespace ClaudeCodeVS.ToolWindows
             var reason = request.Str("decision_reason") ?? request.Str("blocked_path");
             if (!string.IsNullOrWhiteSpace(reason))
             {
-                body.Children.Add(Ui.Text("Neden: " + reason, Theme.MutedTextKey, 0.9).WithMargin(0, 2, 0, 0));
+                body.Children.Add(Ui.Text(L.T("Neden: ") + reason, Theme.MutedTextKey, 0.9).WithMargin(0, 2, 0, 0));
             }
 
             bool isShell = tool == "Bash" || tool == "PowerShell";
@@ -1253,7 +1288,7 @@ namespace ClaudeCodeVS.ToolWindows
                 icon.VerticalAlignment = VerticalAlignment.Top;
                 DockPanel.SetDock(icon, Dock.Left);
                 warning.Children.Add(icon);
-                warning.Children.Add(Ui.Text("Bu komut ağ üzerinden veri gönderebilir. Şirket içi kod veya bilgilerin dışarı çıkmadığından emin değilseniz reddedin.", Theme.TextKey, 0.95));
+                warning.Children.Add(Ui.Text(L.T("Bu komut ağ üzerinden veri gönderebilir. Şirket içi kod veya bilgilerin dışarı çıkmadığından emin değilseniz reddedin."), Theme.TextKey, 0.95));
                 body.Children.Add(new Border
                 {
                     Child = warning,
@@ -1270,34 +1305,34 @@ namespace ClaudeCodeVS.ToolWindows
             // A risky command keeps "Evet" as a plain button so it is never the most prominent choice.
             var actions = new List<CardAction>
             {
-                new CardAction("Evet", () => { _session.AllowTool(requestId, input, null); Decide("allowed"); }, "İzin verildi",
+                new CardAction(L.T("Evet"), () => { _session.AllowTool(requestId, input, null); Decide("allowed"); }, L.T("İzin verildi"),
                     kind: networkRisk ? CardActionKind.Secondary : CardActionKind.Primary) { Glyph = Theme.Glyph.Check },
             };
 
             var suggestions = request.Arr("permission_suggestions");
             if (suggestions != null && suggestions.Count > 0 && !networkRisk)
             {
-                actions.Add(new CardAction(DescribeSuggestions(suggestions), () => { _session.AllowTool(requestId, input, suggestions); Decide("allowed+rule"); }, "İzin verildi, kural eklendi"));
+                actions.Add(new CardAction(DescribeSuggestions(suggestions), () => { _session.AllowTool(requestId, input, suggestions); Decide("allowed+rule"); }, L.T("İzin verildi, kural eklendi")));
             }
 
             if (DiffPreview.CanPreview(tool))
             {
-                actions.Add(new CardAction("Değişikliği göster", () => Fire(() => DiffPreview.ShowAsync(_package, tool, input)), kind: CardActionKind.Ghost)
+                actions.Add(new CardAction(L.T("Değişikliği göster"), () => Fire(() => DiffPreview.ShowAsync(_package, tool, input)), kind: CardActionKind.Ghost)
                 {
                     Glyph = Theme.Glyph.View,
-                    ToolTip = "Önerilen değişikliği Visual Studio diff görünümünde aç",
+                    ToolTip = L.T("Önerilen değişikliği Visual Studio diff görünümünde aç"),
                 });
             }
 
-            actions.Add(new CardAction("Hayır", () =>
+            actions.Add(new CardAction(L.T("Hayır"), () =>
             {
                 _stoppedByUser = true;
                 _session.DenyTool(requestId, "The user denied this action. Stop and wait for the user's instructions.", interrupt: true);
                 Decide("denied");
                 FocusInput();
-            }, "Reddedildi", Theme.Error, CardActionKind.Danger));
+            }, L.T("Reddedildi"), Theme.Error, CardActionKind.Danger));
 
-            var title = $"İzin gerekiyor · {request.Str("display_name") ?? tool}";
+            var title = L.F("İzin gerekiyor · {0}", request.Str("display_name") ?? tool);
             return new PermissionCardView(requestId, Theme.Glyph.Lock, title, body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
         }
 
@@ -1307,16 +1342,16 @@ namespace ClaudeCodeVS.ToolWindows
             plan.SetFinal(input.Str("plan") ?? string.Empty);
             var actions = new[]
             {
-                new CardAction("Onayla, düzenlemeleri otomatik kabul et", () => _session.AllowTool(requestId, input, ModeUpdate("acceptEdits")), "Plan onaylandı", kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Check },
-                new CardAction("Onayla, her düzenlemeyi sor", () => _session.AllowTool(requestId, input, ModeUpdate("default")), "Plan onaylandı"),
-                new CardAction("Planlamaya devam et", () =>
+                new CardAction(L.T("Onayla, düzenlemeleri otomatik kabul et"), () => _session.AllowTool(requestId, input, ModeUpdate("acceptEdits")), L.T("Plan onaylandı"), kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Check },
+                new CardAction(L.T("Onayla, her düzenlemeyi sor"), () => _session.AllowTool(requestId, input, ModeUpdate("default")), L.T("Plan onaylandı")),
+                new CardAction(L.T("Planlamaya devam et"), () =>
                 {
                     _stoppedByUser = true;
                     _session.DenyTool(requestId, "The user wants to keep planning. Wait for their feedback on the plan.", interrupt: true);
                     FocusInput();
-                }, "Plan reddedildi", Theme.Error, CardActionKind.Danger),
+                }, L.T("Plan reddedildi"), Theme.Error, CardActionKind.Danger),
             };
-            return new PermissionCardView(requestId, Theme.Glyph.Document, "Plan onayı", plan, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
+            return new PermissionCardView(requestId, Theme.Glyph.Document, L.T("Plan onayı"), plan, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
         }
 
         private PermissionCardView BuildQuestionCard(string requestId, JObject input)
@@ -1324,15 +1359,15 @@ namespace ClaudeCodeVS.ToolWindows
             var form = new QuestionForm(input.Arr("questions") ?? new JArray());
             var actions = new[]
             {
-                new CardAction("Yanıtla", () =>
+                new CardAction(L.T("Yanıtla"), () =>
                 {
                     var answered = (JObject)input.DeepClone();
                     answered["answers"] = form.GetAnswers();
                     _session.AllowTool(requestId, answered, null);
-                }, "Yanıtlandı", kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Send },
-                new CardAction("Atla", () => _session.DenyTool(requestId, "The user skipped these questions. Continue with your best judgment.", interrupt: false), "Atlandı", Theme.Warning, CardActionKind.Ghost),
+                }, L.T("Yanıtlandı"), kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Send },
+                new CardAction(L.T("Atla"), () => _session.DenyTool(requestId, "The user skipped these questions. Continue with your best judgment.", interrupt: false), L.T("Atlandı"), Theme.Warning, CardActionKind.Ghost),
             };
-            return new PermissionCardView(requestId, Theme.Glyph.Help, "Claude bir soru soruyor", form, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
+            return new PermissionCardView(requestId, Theme.Glyph.Help, L.T("Claude bir soru soruyor"), form, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
         }
 
         private static JArray ModeUpdate(string mode) =>
@@ -1346,34 +1381,34 @@ namespace ClaudeCodeVS.ToolWindows
                 switch (suggestion.Str("type"))
                 {
                     case "setMode" when suggestion.Str("mode") == "acceptEdits":
-                        parts.Add("bu oturumda düzenlemeleri otomatik kabul et");
+                        parts.Add(L.T("bu oturumda düzenlemeleri otomatik kabul et"));
                         break;
                     case "setMode":
-                        parts.Add("modu değiştir: " + suggestion.Str("mode"));
+                        parts.Add(L.T("modu değiştir: ") + suggestion.Str("mode"));
                         break;
                     case "addRules":
                         var rules = suggestion.Arr("rules")?.OfType<JObject>()
                             .Select(r => r.Str("ruleContent") is string content ? $"{r.Str("toolName")}({content})" : r.Str("toolName"))
                             ?? Enumerable.Empty<string>();
-                        parts.Add("bir daha sorma: " + string.Join(", ", rules));
+                        parts.Add(L.T("bir daha sorma: ") + string.Join(", ", rules));
                         break;
                     case "addDirectories":
-                        parts.Add("klasöre erişim ver: " + string.Join(", ", suggestion.Arr("directories")?.Select(d => d.ToString()) ?? Enumerable.Empty<string>()));
+                        parts.Add(L.T("klasöre erişim ver: ") + string.Join(", ", suggestion.Arr("directories")?.Select(d => d.ToString()) ?? Enumerable.Empty<string>()));
                         break;
                     default:
-                        parts.Add("bir daha sorma");
+                        parts.Add(L.T("bir daha sorma"));
                         break;
                 }
             }
 
-            return "Evet, " + string.Join(" + ", parts.Distinct());
+            return L.T("Evet, ") + string.Join(" + ", parts.Distinct());
         }
 
         private void CancelPendingCards(string reason)
         {
             foreach (var card in _pendingCards.Values.Where(c => !c.IsResolved))
             {
-                card.Resolve(reason ?? "İptal edildi", Theme.Warning);
+                card.Resolve(reason ?? L.T("İptal edildi"), Theme.Warning);
             }
 
             _pendingCards.Clear();
@@ -1549,7 +1584,7 @@ namespace ClaudeCodeVS.ToolWindows
 
                 if (pastImages > 0)
                 {
-                    chips.Children.Add(Ui.Chip("", pastImages == 1 ? "görsel" : $"{pastImages} görsel", null, null));
+                    chips.Children.Add(Ui.Chip("", pastImages == 1 ? L.T("görsel") : L.F("{0} görsel", pastImages), null, null));
                 }
 
                 stack.Children.Add(chips);
@@ -1627,46 +1662,31 @@ namespace ClaudeCodeVS.ToolWindows
             SendAsIs,
         }
 
-        private PrivacyPolicy CurrentPolicy()
-        {
-            var options = _package.Options;
-            return new PrivacyPolicy
-            {
-                Enabled = options.PrivacyMode,
-                AllowWebTools = options.AllowWebTools,
-                AllowMcpServers = options.AllowMcpServers,
-                BlockNetworkCommands = options.BlockNetworkCommands,
-                ScanSecrets = options.ScanForSecrets,
-                AuditLog = options.AuditLog,
-                Provider = options.Provider,
-                ProtectedPatterns = PrivacyPolicy.ParsePatterns(options.ProtectedFilePatterns),
-                ExtraEnvironment = PrivacyPolicy.ParseEnvironment(options.EnvironmentVariables),
-            };
-        }
+        private PrivacyPolicy CurrentPolicy() => _package.Options.CreatePrivacyPolicy();
 
         /// <summary>Shows what looks like a credential (never the value itself) and waits for the user's choice.</summary>
         private System.Threading.Tasks.Task<SecretDecision> AskAboutSecretsAsync(IReadOnlyList<(string Source, IReadOnlyList<SecretMatch> Matches)> findings)
         {
             var decision = new System.Threading.Tasks.TaskCompletionSource<SecretDecision>();
             var body = new StackPanel();
-            body.Children.Add(Ui.Text("Gönderilecek içerikte gizli olabilecek değerler bulundu. Maskelenirse değerlerin yerine «GİZLİ» gönderilir.", Theme.MutedTextKey, 0.95));
+            body.Children.Add(Ui.Text(L.F("Gönderilecek içerikte gizli olabilecek değerler bulundu. Maskelenirse değerlerin yerine {0} gönderilir.", SecretScanner.Mask), Theme.MutedTextKey, 0.95));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             foreach (var (source, matches) in findings)
             {
                 foreach (var match in matches.Take(8))
                 {
-                    list.Children.Add(Ui.Text($"•  {match.Kind}  —  {source}, satır {match.Line}", Theme.TextKey, 0.95));
+                    list.Children.Add(Ui.Text(L.F("•  {0}  —  {1}, satır {2}", match.Kind, source, match.Line), Theme.TextKey, 0.95));
                 }
             }
 
             body.Children.Add(list);
             var actions = new[]
             {
-                new CardAction("Maskeleyerek gönder", () => decision.TrySetResult(SecretDecision.Mask), "Maskelendi", kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Lock },
-                new CardAction("Olduğu gibi gönder", () => decision.TrySetResult(SecretDecision.SendAsIs), "Maskelenmeden gönderildi", Theme.Warning),
-                new CardAction("Vazgeç", () => decision.TrySetResult(SecretDecision.Cancel), "Gönderilmedi", Theme.Warning, CardActionKind.Ghost),
+                new CardAction(L.T("Maskeleyerek gönder"), () => decision.TrySetResult(SecretDecision.Mask), L.T("Maskelendi"), kind: CardActionKind.Primary) { Glyph = Theme.Glyph.Lock },
+                new CardAction(L.T("Olduğu gibi gönder"), () => decision.TrySetResult(SecretDecision.SendAsIs), L.T("Maskelenmeden gönderildi"), Theme.Warning),
+                new CardAction(L.T("Vazgeç"), () => decision.TrySetResult(SecretDecision.Cancel), L.T("Gönderilmedi"), Theme.Warning, CardActionKind.Ghost),
             };
-            Append(new PermissionCardView(null, Theme.Glyph.Warning, "Gizli bilgi olabilir", body, actions, ex => AddNotice(ex.Message, NoticeKind.Error)));
+            Append(new PermissionCardView(null, Theme.Glyph.Warning, L.T("Gizli bilgi olabilir"), body, actions, ex => AddNotice(ex.Message, NoticeKind.Error)));
             _stickToBottom = true;
             return decision.Task;
         }
@@ -1677,11 +1697,11 @@ namespace ClaudeCodeVS.ToolWindows
             bool managed = PrivacyPolicy.IsManagedPolicyPresent();
             PrivacyBadgeGlyph.Text = policy.Enabled ? Theme.Glyph.Lock : Theme.Glyph.Warning;
             PrivacyBadgeGlyph.Foreground = policy.Enabled ? Theme.Success : Theme.Warning;
-            PrivacyBadgeText.Text = policy.Enabled ? "Gizli mod" : "Gizlilik kapalı";
+            PrivacyBadgeText.Text = policy.Enabled ? L.T("Gizli mod") : L.T("Gizlilik kapalı");
             PrivacyBadge.ToolTip = string.Join("\n", policy.Describe())
-                + "\nModel sağlayıcısı: " + PrivacyPolicy.ProviderName(policy.Provider)
-                + (managed ? "\nKurumsal Claude Code politikası bu bilgisayarda etkin." : string.Empty)
-                + "\n\nAyrıntılar için tıklayın.";
+                + L.T("\nModel sağlayıcısı: ") + PrivacyPolicy.ProviderName(policy.Provider)
+                + (managed ? L.T("\nKurumsal Claude Code politikası bu bilgisayarda etkin.") : string.Empty)
+                + L.T("\n\nAyrıntılar için tıklayın.");
         }
 
         private void OnPrivacyBadgeClick(object sender, RoutedEventArgs e) => ShowPrivacySummary();
@@ -1708,32 +1728,31 @@ namespace ClaudeCodeVS.ToolWindows
                 body.Children.Add(row);
             }
 
-            Section("Bu eklentideki korumalar");
+            Section(L.T("Bu eklentideki korumalar"));
             foreach (var line in policy.Describe())
             {
                 Line(policy.Enabled ? Theme.Glyph.Check : Theme.Glyph.Warning, policy.Enabled ? Theme.Success : Theme.Warning, line);
             }
 
-            Section("Veri nereye gider");
-            Line(Theme.Glyph.Info, Theme.Accent, "Claude'un yanıt üretmek için gördüğü her şey (mesajlar, eklenen kod, araçların okuduğu dosyalar ve komut çıktıları) model sağlayıcısına gönderilir: "
-                + PrivacyPolicy.ProviderName(policy.Provider) + ".");
-            Line(Theme.Glyph.Info, Theme.Accent, "Ticari hesaplarda (Team, Enterprise, API, Bedrock/Vertex/Foundry) Anthropic kod ve istemleri model eğitiminde kullanmaz; standart saklama süresi 30 gündür. "
-                + "Sıfır veri saklama (ZDR) Claude for Enterprise'da Anthropic'in onayıyla açılabilir. Bedrock/Vertex/Foundry'de bulut sağlayıcınızın sözleşmesi geçerlidir.");
-            Line(Theme.Glyph.Info, Theme.Accent, "Claude Code konuşma kayıtlarını bu bilgisayarda %USERPROFILE%\\.claude\\projects altında düz metin olarak 30 gün tutar (cleanupPeriodDays ile ayarlanır).");
+            Section(L.T("Veri nereye gider"));
+            Line(Theme.Glyph.Info, Theme.Accent, L.F("Claude'un yanıt üretmek için gördüğü her şey (mesajlar, eklenen kod, araçların okuduğu dosyalar ve komut çıktıları) model sağlayıcısına gönderilir: {0}.",
+                PrivacyPolicy.ProviderName(policy.Provider)));
+            Line(Theme.Glyph.Info, Theme.Accent, L.T("Ticari hesaplarda (Team, Enterprise, API, Bedrock/Vertex/Foundry) Anthropic kod ve istemleri model eğitiminde kullanmaz; standart saklama süresi 30 gündür. Sıfır veri saklama (ZDR) Claude for Enterprise'da Anthropic'in onayıyla açılabilir. Bedrock/Vertex/Foundry'de bulut sağlayıcınızın sözleşmesi geçerlidir."));
+            Line(Theme.Glyph.Info, Theme.Accent, L.T("Claude Code konuşma kayıtlarını bu bilgisayarda %USERPROFILE%\\.claude\\projects altında düz metin olarak 30 gün tutar (cleanupPeriodDays ile ayarlanır)."));
 
-            Section("Kurumsal politika");
+            Section(L.T("Kurumsal politika"));
             Line(managed ? Theme.Glyph.Check : Theme.Glyph.Info, managed ? Theme.Success : Theme.Accent, managed
-                ? "Bu bilgisayarda BT tarafından dağıtılmış bir Claude Code politikası var; kullanıcı ayarları onu geçersiz kılamaz."
-                : "Merkezi politika bulunamadı. Bu eklentinin ayarlarını kullanıcı değiştirebilir; zorunlu kılmak için BT ekibi "
-                  + PrivacyPolicy.ManagedSettingsPath + " dosyasını dağıtmalıdır (README'de örnek var).");
+                ? L.T("Bu bilgisayarda BT tarafından dağıtılmış bir Claude Code politikası var; kullanıcı ayarları onu geçersiz kılamaz.")
+                : L.F("Merkezi politika bulunamadı. Bu eklentinin ayarlarını kullanıcı değiştirebilir; zorunlu kılmak için BT ekibi {0} dosyasını dağıtmalıdır (README'de örnek var).",
+                    PrivacyPolicy.ManagedSettingsPath));
 
             var actions = new List<CardAction>
             {
-                new CardAction("Gizlilik ayarları", () => _package.ShowOptionPage(typeof(Options.GeneralOptionsPage)), kind: CardActionKind.Secondary) { Glyph = Theme.Glyph.Lock },
+                new CardAction(L.T("Gizlilik ayarları"), () => _package.ShowOptionPage(typeof(Options.GeneralOptionsPage)), kind: CardActionKind.Secondary) { Glyph = Theme.Glyph.Lock },
             };
             if (policy.Enabled && policy.AuditLog)
             {
-                actions.Add(new CardAction("Gönderim günlüğünü aç", () =>
+                actions.Add(new CardAction(L.T("Gönderim günlüğünü aç"), () =>
                 {
                     Directory.CreateDirectory(_audit.Folder);
                     Process.Start(new ProcessStartInfo(_audit.Folder) { UseShellExecute = true });
@@ -1747,7 +1766,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
 
             _privacySummary = new PermissionCardView(null, policy.Enabled ? Theme.Glyph.Lock : Theme.Glyph.Warning,
-                policy.Enabled ? "Gizlilik modu açık" : "Gizlilik modu kapalı", body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
+                policy.Enabled ? L.T("Gizlilik modu açık") : L.T("Gizlilik modu kapalı"), body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
             Append(_privacySummary);
             _stickToBottom = true;
         }
@@ -1782,7 +1801,7 @@ namespace ClaudeCodeVS.ToolWindows
         {
             if (_images.Count >= 10)
             {
-                AddNotice("Bir mesaja en fazla 10 görsel eklenebilir.", NoticeKind.Info);
+                AddNotice(L.T("Bir mesaja en fazla 10 görsel eklenebilir."), NoticeKind.Info);
                 return;
             }
 
@@ -1830,9 +1849,9 @@ namespace ClaudeCodeVS.ToolWindows
                 }
                 else if (status.LoggedIn && (wasLoggedOut || (_loginCard != null && !_loginCard.IsResolved)))
                 {
-                    _loginCard?.Resolve($"Giriş yapıldı · {status.ShortName}", Theme.Success);
+                    _loginCard?.Resolve(L.F("Giriş yapıldı · {0}", status.ShortName), Theme.Success);
                     _loginCard = null;
-                    AddNotice($"Claude Code'a giriş yapıldı: {status.ShortName}" + (status.PlanName != null ? $" ({status.PlanName})" : string.Empty), NoticeKind.Info);
+                    AddNotice(L.F("Claude Code'a giriş yapıldı: {0}", status.ShortName) + (status.PlanName != null ? $" ({status.PlanName})" : string.Empty), NoticeKind.Info);
                     RequestUsageRefresh(force: true);
                 }
             }).FileAndForget("ClaudeCodeVS/auth");
@@ -1846,7 +1865,7 @@ namespace ClaudeCodeVS.ToolWindows
             {
                 AccountBadgeGlyph.Text = "";
                 AccountBadgeGlyph.SetResourceReference(TextBlock.ForegroundProperty, Theme.MutedTextKey);
-                AccountBadge.ToolTip = "Hesap durumu alınıyor…";
+                AccountBadge.ToolTip = L.T("Hesap durumu alınıyor…");
                 return;
             }
 
@@ -1854,10 +1873,10 @@ namespace ClaudeCodeVS.ToolWindows
             {
                 AccountBadgeGlyph.Text = Theme.Glyph.Warning;
                 AccountBadgeGlyph.Foreground = Theme.Warning;
-                AccountBadgeText.Text = "Giriş yap";
+                AccountBadgeText.Text = L.T("Giriş yap");
                 AccountBadgeText.Foreground = Theme.Warning;
                 AccountBadgeText.Visibility = Visibility.Visible;
-                AccountBadge.ToolTip = "Claude Code bu bilgisayarda oturum açmamış. Giriş yapmak için tıklayın.";
+                AccountBadge.ToolTip = L.T("Claude Code bu bilgisayarda oturum açmamış. Giriş yapmak için tıklayın.");
                 return;
             }
 
@@ -1882,14 +1901,14 @@ namespace ClaudeCodeVS.ToolWindows
             lines.Add(_auth.MethodName + (_auth.PlanName != null ? " · " + _auth.PlanName : string.Empty));
             if (wrongOrg)
             {
-                lines.Add("⚠ Beklenen kuruluş değil: " + _package.Options.ExpectedOrganization);
+                lines.Add(L.T("⚠ Beklenen kuruluş değil: ") + _package.Options.ExpectedOrganization);
             }
             else if (consumer)
             {
-                lines.Add("⚠ Kişisel abonelik; şirket kodu için kuruluş hesabı önerilir.");
+                lines.Add(L.T("⚠ Kişisel abonelik; şirket kodu için kuruluş hesabı önerilir."));
             }
 
-            lines.Add("Ayrıntılar için tıklayın.");
+            lines.Add(L.T("Ayrıntılar için tıklayın."));
             AccountBadge.ToolTip = string.Join("\n", lines);
         }
 
@@ -1910,7 +1929,7 @@ namespace ClaudeCodeVS.ToolWindows
             if (_auth == null)
             {
                 RequestAuthRefresh(force: true);
-                AddNotice("Hesap durumu alınıyor…", NoticeKind.Muted);
+                AddNotice(L.T("Hesap durumu alınıyor…"), NoticeKind.Muted);
                 return;
             }
 
@@ -1933,39 +1952,38 @@ namespace ClaudeCodeVS.ToolWindows
                 body.Children.Add(row);
             }
 
-            Row("Kuruluş", _auth.OrgName);
+            Row(L.T("Kuruluş"), _auth.OrgName);
             Row("E-posta", _auth.Email);
-            Row("Giriş yöntemi", _auth.MethodName);
-            Row("Abonelik", _auth.PlanName);
-            Row("Model sağlayıcısı", _auth.ProviderName);
+            Row(L.T("Giriş yöntemi"), _auth.MethodName);
+            Row(L.T("Abonelik"), _auth.PlanName);
+            Row(L.T("Model sağlayıcısı"), _auth.ProviderName);
 
             if (policy.Enabled && !_auth.MatchesOrganization(_package.Options.ExpectedOrganization))
             {
-                body.Children.Add(Warning($"Beklenen kuruluş \"{_package.Options.ExpectedOrganization}\" değil. Gizlilik modunda bu hesapla mesaj gönderilmez.", Theme.Error));
+                body.Children.Add(Warning(L.F("Beklenen kuruluş \"{0}\" değil. Gizlilik modunda bu hesapla mesaj gönderilmez.", _package.Options.ExpectedOrganization), Theme.Error));
             }
             else if (_auth.IsConsumerPlan)
             {
-                body.Children.Add(Warning("Kişisel bir abonelikle (Free/Pro/Max) giriş yapılmış. Bu planlarda Anthropic, kullanıcının tercihine bağlı olarak verileri model eğitiminde kullanabilir. "
-                    + "Şirket kodu için kuruluşunuzun Team/Enterprise hesabıyla giriş yapın.", Theme.Warning));
+                body.Children.Add(Warning(L.T("Kişisel bir abonelikle (Free/Pro/Max) giriş yapılmış. Bu planlarda Anthropic, kullanıcının tercihine bağlı olarak verileri model eğitiminde kullanabilir. Şirket kodu için kuruluşunuzun Team/Enterprise hesabıyla giriş yapın."), Theme.Warning));
             }
 
-            body.Children.Add(Ui.Text("Bu oturum bilgisayardaki Claude Code ile ortaktır (terminal ve VS Code eklentisi de aynı girişi kullanır).", Theme.MutedTextKey, 0.9).WithMargin(0, 8, 0, 0));
+            body.Children.Add(Ui.Text(L.T("Bu oturum bilgisayardaki Claude Code ile ortaktır (terminal ve VS Code eklentisi de aynı girişi kullanır)."), Theme.MutedTextKey, 0.9).WithMargin(0, 8, 0, 0));
 
             var actions = new List<CardAction>();
             if (!_auth.UsesCloudProvider)
             {
-                actions.Add(new CardAction("Başka hesapla giriş", () => ShowLoginCard("Başka bir hesapla giriş yapın; mevcut oturumun yerini alır."), kind: CardActionKind.Secondary) { Glyph = "" });
-                actions.Add(new CardAction("Çıkış yap", () => Fire(LogoutAsync), "Çıkış yapılıyor…", Theme.Warning, CardActionKind.Danger));
+                actions.Add(new CardAction(L.T("Başka hesapla giriş"), () => ShowLoginCard(L.T("Başka bir hesapla giriş yapın; mevcut oturumun yerini alır.")), kind: CardActionKind.Secondary) { Glyph = "" });
+                actions.Add(new CardAction(L.T("Çıkış yap"), () => Fire(LogoutAsync), L.T("Çıkış yapılıyor…"), Theme.Warning, CardActionKind.Danger));
             }
 
-            actions.Add(new CardAction("Yenile", () => RequestAuthRefresh(force: true), kind: CardActionKind.Ghost) { Glyph = Theme.Glyph.Refresh });
+            actions.Add(new CardAction(L.T("Yenile"), () => RequestAuthRefresh(force: true), kind: CardActionKind.Ghost) { Glyph = Theme.Glyph.Refresh });
 
             if (_accountCard != null)
             {
                 Transcript.Children.Remove(_accountCard);
             }
 
-            _accountCard = new PermissionCardView(null, "", "Claude Code hesabı", body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
+            _accountCard = new PermissionCardView(null, "", L.T("Claude Code hesabı"), body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
             Append(_accountCard);
             _stickToBottom = true;
         }
@@ -1979,28 +1997,26 @@ namespace ClaudeCodeVS.ToolWindows
 
             var policy = CurrentPolicy();
             var body = new StackPanel();
-            body.Children.Add(Ui.Text(reason ?? "Claude Code bu bilgisayarda oturum açmamış.", Theme.TextKey));
-            body.Children.Add(Ui.Text("Giriş; terminal ve VS Code eklentisiyle ortaktır, bir kez yapmanız yeterli. Butona basınca bir pencere açılır ve tarayıcıda giriş sayfası gelir; "
-                + "giriş tamamlanınca bu panel kendiliğinden güncellenir.", Theme.MutedTextKey, 0.95).WithMargin(0, 4, 0, 0));
+            body.Children.Add(Ui.Text(reason ?? L.T("Claude Code bu bilgisayarda oturum açmamış."), Theme.TextKey));
+            body.Children.Add(Ui.Text(L.T("Giriş; terminal ve VS Code eklentisiyle ortaktır, bir kez yapmanız yeterli. Butona basınca bir pencere açılır ve tarayıcıda giriş sayfası gelir; giriş tamamlanınca bu panel kendiliğinden güncellenir."), Theme.MutedTextKey, 0.95).WithMargin(0, 4, 0, 0));
             if (policy.Provider != ModelProvider.Anthropic)
             {
-                body.Children.Add(Warning($"Seçili sağlayıcı {PrivacyPolicy.ProviderName(policy.Provider)}: Claude hesabıyla giriş gerekmez, "
-                    + "kimlik bilgileri ortam değişkenlerinden gelir (Araçlar > Seçenekler > Claude Code).", Theme.Accent));
+                body.Children.Add(Warning(L.F("Seçili sağlayıcı {0}: Claude hesabıyla giriş gerekmez, kimlik bilgileri ortam değişkenlerinden gelir (Araçlar > Seçenekler > Claude Code).", PrivacyPolicy.ProviderName(policy.Provider)), Theme.Accent));
             }
 
             if (!string.IsNullOrWhiteSpace(_package.Options.ExpectedOrganization))
             {
-                body.Children.Add(Ui.Text($"Şirket hesabıyla giriş yapın: {_package.Options.ExpectedOrganization}.", Theme.TextKey, 0.95, FontWeights.SemiBold).WithMargin(0, 6, 0, 0));
+                body.Children.Add(Ui.Text(L.F("Şirket hesabıyla giriş yapın: {0}.", _package.Options.ExpectedOrganization), Theme.TextKey, 0.95, FontWeights.SemiBold).WithMargin(0, 6, 0, 0));
             }
 
             var actions = new[]
             {
-                new CardAction("Claude hesabıyla giriş", () => StartLogin(LoginMethod.ClaudeAccount), kind: CardActionKind.Primary) { Glyph = "", ToolTip = "Claude Pro/Max/Team/Enterprise aboneliği" },
-                new CardAction("SSO ile giriş", () => StartLogin(LoginMethod.Sso)) { ToolTip = "Kuruluşunuz tek oturum açma (SSO) kullanıyorsa" },
-                new CardAction("Console (API) ile giriş", () => StartLogin(LoginMethod.Console), kind: CardActionKind.Ghost) { ToolTip = "Anthropic Console hesabı; kullanım API üzerinden faturalanır" },
-                new CardAction("Durumu yenile", () => RequestAuthRefresh(force: true), kind: CardActionKind.Ghost) { Glyph = Theme.Glyph.Refresh },
+                new CardAction(L.T("Claude hesabıyla giriş"), () => StartLogin(LoginMethod.ClaudeAccount), kind: CardActionKind.Primary) { Glyph = "", ToolTip = L.T("Claude Pro/Max/Team/Enterprise aboneliği") },
+                new CardAction(L.T("SSO ile giriş"), () => StartLogin(LoginMethod.Sso)) { ToolTip = L.T("Kuruluşunuz tek oturum açma (SSO) kullanıyorsa") },
+                new CardAction(L.T("Console (API) ile giriş"), () => StartLogin(LoginMethod.Console), kind: CardActionKind.Ghost) { ToolTip = L.T("Anthropic Console hesabı; kullanım API üzerinden faturalanır") },
+                new CardAction(L.T("Durumu yenile"), () => RequestAuthRefresh(force: true), kind: CardActionKind.Ghost) { Glyph = Theme.Glyph.Refresh },
             };
-            _loginCard = new PermissionCardView(null, Theme.Glyph.Lock, "Claude Code'a giriş yapın", body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
+            _loginCard = new PermissionCardView(null, Theme.Glyph.Lock, L.T("Claude Code'a giriş yapın"), body, actions, ex => AddNotice(ex.Message, NoticeKind.Error));
             Append(_loginCard);
             _stickToBottom = true;
         }
@@ -2016,7 +2032,7 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (_loginProcess != null && !_loginProcess.HasExited)
             {
-                AddNotice("Giriş penceresi zaten açık; oradaki adımları tamamlayın.", NoticeKind.Info);
+                AddNotice(L.T("Giriş penceresi zaten açık; oradaki adımları tamamlayın."), NoticeKind.Info);
                 return;
             }
 
@@ -2026,7 +2042,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is InvalidOperationException)
             {
-                AddNotice("Giriş başlatılamadı: " + ex.Message, NoticeKind.Error);
+                AddNotice(L.T("Giriş başlatılamadı: ") + ex.Message, NoticeKind.Error);
                 return;
             }
 
@@ -2040,7 +2056,7 @@ namespace ClaudeCodeVS.ToolWindows
                 });
             }
 
-            AddNotice("Açılan pencerede ve tarayıcıda girişi tamamlayın; bitince bu panel kendiliğinden güncellenir.", NoticeKind.Info);
+            AddNotice(L.T("Açılan pencerede ve tarayıcıda girişi tamamlayın; bitince bu panel kendiliğinden güncellenir."), NoticeKind.Info);
         }
 
         private async Task LogoutAsync()
@@ -2055,7 +2071,7 @@ namespace ClaudeCodeVS.ToolWindows
             _session.Stop();
             await AuthStatus.LogoutAsync(executable, CurrentPolicy().BuildEnvironment());
             await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
-            AddNotice("Claude Code oturumu kapatıldı (terminal ve VS Code eklentisi için de geçerlidir).", NoticeKind.Info);
+            AddNotice(L.T("Claude Code oturumu kapatıldı (terminal ve VS Code eklentisi için de geçerlidir)."), NoticeKind.Info);
             RequestAuthRefresh(force: true);
         }
 
@@ -2063,7 +2079,7 @@ namespace ClaudeCodeVS.ToolWindows
         private void HandleAuthProblem()
         {
             RequestAuthRefresh(force: true);
-            ShowLoginCard("Claude Code oturumu açık değil ya da süresi dolmuş.");
+            ShowLoginCard(L.T("Claude Code oturumu açık değil ya da süresi dolmuş."));
         }
 
         private static UIElement Warning(string text, Brush brush)
@@ -2122,7 +2138,7 @@ namespace ClaudeCodeVS.ToolWindows
             HideHistory();
             if (_busy)
             {
-                AddNotice("Claude çalışırken başka bir sohbete geçilemez; önce durdurun.", NoticeKind.Info);
+                AddNotice(L.T("Claude çalışırken başka bir sohbete geçilemez; önce durdurun."), NoticeKind.Info);
                 return;
             }
 
@@ -2142,12 +2158,12 @@ namespace ClaudeCodeVS.ToolWindows
             _pendingCards.Clear();
             _turnTexts.Clear();
 
-            AddNotice($"Geçmiş sohbet · {summary.Title} · {summary.Updated:g}", NoticeKind.Info);
+            AddNotice(L.F("Geçmiş sohbet · {0} · {1:g}", summary.Title, summary.Updated), NoticeKind.Info);
             const int MaxRecords = 400;
             int skip = Math.Max(0, records.Count - MaxRecords);
             if (skip > 0)
             {
-                AddNotice($"Daha eski {skip} kayıt gösterilmiyor.", NoticeKind.Muted);
+                AddNotice(L.F("Daha eski {0} kayıt gösterilmiyor.", skip), NoticeKind.Muted);
             }
 
             _replaying = true;
@@ -2176,7 +2192,7 @@ namespace ClaudeCodeVS.ToolWindows
                 FinishStreaming();
             }
 
-            AddNotice("Kaldığı yerden devam etmek için yazmanız yeterli.", NoticeKind.Muted);
+            AddNotice(L.T("Kaldığı yerden devam etmek için yazmanız yeterli."), NoticeKind.Muted);
             _stickToBottom = true;
             TranscriptScroll.ScrollToEnd();
             RenderStatus();
@@ -2236,7 +2252,7 @@ namespace ClaudeCodeVS.ToolWindows
         {
             var items = new List<CompletionItem>
             {
-                new CompletionItem { InsertText = "/clear", Label = "/clear", Detail = "Yeni sohbet başlat", Glyph = Theme.Glyph.Add },
+                new CompletionItem { InsertText = "/clear", Label = "/clear", Detail = L.T("Yeni sohbet başlat"), Glyph = Theme.Glyph.Add },
             };
 
             foreach (var command in _commands?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
@@ -2355,7 +2371,7 @@ namespace ClaudeCodeVS.ToolWindows
                 var percent = usage.Num("percentage") ?? 0;
                 var total = usage.Num("totalTokens") ?? 0;
                 var max = usage.Num("maxTokens") ?? 0;
-                ContextUsageText.Text = $"%{Math.Round(percent)}";
+                ContextUsageText.Text = L.F("%{0}", Math.Round(percent));
                 Brush brush = percent >= 90 ? Theme.Error : percent >= 75 ? Theme.Warning : null;
                 foreach (var block in new[] { ContextUsageText, ContextUsageGlyph })
                 {
@@ -2372,9 +2388,9 @@ namespace ClaudeCodeVS.ToolWindows
                 var categories = usage.Arr("categories")?.OfType<JObject>()
                     .Where(c => c.Str("kind") == "used" && (c.Num("tokens") ?? 0) > 0)
                     .Select(c => $"• {c.Str("name")}: {c.Num("tokens"):N0}") ?? Enumerable.Empty<string>();
-                ContextUsageButton.ToolTip = $"Bağlam penceresi: {total:N0} / {max:N0} token (%{Math.Round(percent)})\n"
+                ContextUsageButton.ToolTip = L.F("Bağlam penceresi: {0:N0} / {1:N0} token (%{2})\n", total, max, Math.Round(percent))
                     + string.Join("\n", categories)
-                    + "\n\nTıklayın: konuşmayı özetleyip yer açın (/compact).";
+                    + L.T("\n\nTıklayın: konuşmayı özetleyip yer açın (/compact).");
                 ContextUsageButton.Visibility = Visibility.Visible;
             }).FileAndForget("ClaudeCodeVS/context");
         }
@@ -2414,7 +2430,7 @@ namespace ClaudeCodeVS.ToolWindows
                 }
                 catch (Exception ex) when (ex is IOException || ex is NotSupportedException || ex is UnauthorizedAccessException || ex is ArgumentException)
                 {
-                    AddNotice($"Görsel eklenemedi: {Path.GetFileName(file)} ({ex.Message})", NoticeKind.Error);
+                    AddNotice(L.F("Görsel eklenemedi: {0} ({1})", Path.GetFileName(file), ex.Message), NoticeKind.Error);
                 }
             }
         }
@@ -2439,20 +2455,20 @@ namespace ClaudeCodeVS.ToolWindows
 
             if (_activeContext == null)
             {
-                _contextLabel.Text = "Dosya yok";
-                ContextToggle.ToolTip = "Açık bir düzenleyici olduğunda aktif dosya ve seçili satırlar mesajla birlikte gönderilir.";
+                _contextLabel.Text = L.T("Dosya yok");
+                ContextToggle.ToolTip = L.T("Açık bir düzenleyici olduğunda aktif dosya ve seçili satırlar mesajla birlikte gönderilir.");
             }
             else if (CurrentPolicy().IsProtected(_activeContext.FilePath))
             {
-                _contextLabel.Text = _activeContext.FileName + " · korumalı";
-                ContextToggle.ToolTip = _activeContext.FilePath + "\nBu dosya korunan dosya desenlerine uyuyor; gizlilik ayarları gereği Claude'a gönderilmez.";
+                _contextLabel.Text = _activeContext.FileName + L.T(" · korumalı");
+                ContextToggle.ToolTip = _activeContext.FilePath + L.T("\nBu dosya korunan dosya desenlerine uyuyor; gizlilik ayarları gereği Claude'a gönderilmez.");
             }
             else
             {
                 _contextLabel.Text = _activeContext.DisplayName;
                 ContextToggle.ToolTip = _activeContext.FilePath
-                    + (_activeContext.HasSelection ? $"\nSeçili satırlar: {_activeContext.StartLine}-{_activeContext.EndLine}" : string.Empty)
-                    + "\nTıklayarak mesaja eklemeyi açıp kapatın.";
+                    + (_activeContext.HasSelection ? L.F("\nSeçili satırlar: {0}-{1}", _activeContext.StartLine, _activeContext.EndLine) : string.Empty)
+                    + L.T("\nTıklayarak mesaja eklemeyi açıp kapatın.");
             }
 
             UpdateContextToggleLook();
@@ -2487,7 +2503,7 @@ namespace ClaudeCodeVS.ToolWindows
             StopButton.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             if (busy)
             {
-                _statusText = status ?? "Claude çalışıyor…";
+                _statusText = status ?? L.T("Claude çalışıyor…");
                 _thinkingGlyph.Text = Theme.SparkleFrames[0];
                 if (!Transcript.Children.Contains(_thinking))
                 {
@@ -2513,11 +2529,11 @@ namespace ClaudeCodeVS.ToolWindows
             _thinkingText.Text = _statusText;
             if (_busy)
             {
-                StatusText.Text = "Claude çalışıyor · durdurmak için Esc";
+                StatusText.Text = L.T("Claude çalışıyor · durdurmak için Esc");
             }
             else
             {
-                var parts = new List<string> { _session.IsRunning ? "Hazır" : "Oturum başlatılmadı" };
+                var parts = new List<string> { _session.IsRunning ? L.T("Hazır") : L.T("Oturum başlatılmadı") };
                 if (!string.IsNullOrEmpty(_activeModel))
                 {
                     parts.Add(_activeModel);
@@ -2577,7 +2593,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
             else
             {
-                foreach (var (label, value) in new[] { ("Varsayılan", "default"), ("Opus", "opus"), ("Sonnet", "sonnet"), ("Haiku", "haiku") })
+                foreach (var (label, value) in new[] { (L.T("Varsayılan"), "default"), ("Opus", "opus"), ("Sonnet", "sonnet"), ("Haiku", "haiku") })
                 {
                     ModelCombo.Items.Add(new ComboBoxItem { Content = label, Tag = value });
                 }
@@ -2644,7 +2660,7 @@ namespace ClaudeCodeVS.ToolWindows
                 catch (Exception ex)
                 {
                     await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    AddNotice($"İzin modu değiştirilemedi: {ex.Message}\nBu mod yeni oturumda kullanılacak.", NoticeKind.Error);
+                    AddNotice(L.F("İzin modu değiştirilemedi: {0}\nBu mod yeni oturumda kullanılacak.", ex.Message), NoticeKind.Error);
                 }
             });
         }
@@ -2671,13 +2687,13 @@ namespace ClaudeCodeVS.ToolWindows
                     var response = await _session.SetModelAsync(model);
                     await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
                     _activeModel = response.Str("model") ?? model;
-                    AddNotice("Model değiştirildi: " + _activeModel, NoticeKind.Muted);
+                    AddNotice(L.T("Model değiştirildi: ") + _activeModel, NoticeKind.Muted);
                     RenderStatus();
                 }
                 catch (Exception ex)
                 {
                     await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    AddNotice($"Model değiştirilemedi: {ex.Message}\nBu model yeni oturumda kullanılacak.", NoticeKind.Error);
+                    AddNotice(L.F("Model değiştirilemedi: {0}\nBu model yeni oturumda kullanılacak.", ex.Message), NoticeKind.Error);
                 }
             });
         }
@@ -2703,11 +2719,11 @@ namespace ClaudeCodeVS.ToolWindows
                 e.Handled = true;
                 try
                 {
-                    AttachImage(ImageAttachment.FromBitmap(Clipboard.GetImage(), "Ekran görüntüsü"));
+                    AttachImage(ImageAttachment.FromBitmap(Clipboard.GetImage(), L.T("Ekran görüntüsü")));
                 }
                 catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException || ex is NotSupportedException || ex is ArgumentException)
                 {
-                    AddNotice("Panodaki görsel eklenemedi: " + ex.Message, NoticeKind.Error);
+                    AddNotice(L.T("Panodaki görsel eklenemedi: ") + ex.Message, NoticeKind.Error);
                 }
 
                 return;
@@ -2791,7 +2807,7 @@ namespace ClaudeCodeVS.ToolWindows
                 }
                 catch (Exception ex)
                 {
-                    AddNotice("Bağlantı açılamadı: " + ex.Message, NoticeKind.Error);
+                    AddNotice(L.T("Bağlantı açılamadı: ") + ex.Message, NoticeKind.Error);
                 }
 
                 return;
@@ -2804,7 +2820,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
             else
             {
-                AddNotice("Dosya bulunamadı: " + target, NoticeKind.Info);
+                AddNotice(L.T("Dosya bulunamadı: ") + target, NoticeKind.Info);
             }
         }
 
@@ -2819,7 +2835,7 @@ namespace ClaudeCodeVS.ToolWindows
             ThreadHelper.ThrowIfNotOnUIThread();
             if (!_ide.InsertAtCaret(code))
             {
-                AddNotice("Kodu eklemek için önce bir düzenleyici penceresinde imleci konumlandırın.", NoticeKind.Info);
+                AddNotice(L.T("Kodu eklemek için önce bir düzenleyici penceresinde imleci konumlandırın."), NoticeKind.Info);
             }
         }
 
@@ -2847,7 +2863,7 @@ namespace ClaudeCodeVS.ToolWindows
             }
             catch (Exception ex)
             {
-                AddNotice($"Dosya açılamadı: {path} ({ex.Message})", NoticeKind.Error);
+                AddNotice(L.F("Dosya açılamadı: {0} ({1})", path, ex.Message), NoticeKind.Error);
             }
         }
 

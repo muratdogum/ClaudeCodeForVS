@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Privacy
 {
@@ -30,23 +31,23 @@ namespace ClaudeCodeVS.Privacy
     /// </summary>
     internal static class SecretScanner
     {
-        public const string Mask = "«GİZLİ»";
+        public static string Mask => L.T("«GİZLİ»");
 
         // A "secret" group marks the part to mask; without it the whole match is masked.
-        private static readonly (string Kind, Regex Pattern)[] Patterns =
+        private static readonly (System.Func<string> Kind, Regex Pattern)[] Patterns =
         {
-            ("Özel anahtar (private key)", new Regex(@"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)", RegexOptions.Compiled)),
-            ("AWS erişim anahtarı", new Regex(@"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b", RegexOptions.Compiled)),
-            ("GitHub token", new Regex(@"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})\b", RegexOptions.Compiled)),
-            ("Slack token", new Regex(@"\bxox[abprs]-[A-Za-z0-9-]{10,}", RegexOptions.Compiled)),
-            ("Google API anahtarı", new Regex(@"\bAIza[0-9A-Za-z\-_]{35}\b", RegexOptions.Compiled)),
-            ("Anthropic API anahtarı", new Regex(@"\bsk-ant-[A-Za-z0-9\-_]{20,}", RegexOptions.Compiled)),
-            ("API anahtarı (sk-…)", new Regex(@"\bsk-(?:proj-)?[A-Za-z0-9_\-]{32,}\b", RegexOptions.Compiled)),
-            ("Stripe anahtarı", new Regex(@"\b[sr]k_live_[0-9A-Za-z]{20,}", RegexOptions.Compiled)),
-            ("JWT", new Regex(@"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}", RegexOptions.Compiled)),
-            ("Azure/bağlantı anahtarı", new Regex(@"(?i)\b(?:AccountKey|SharedAccessKey|SharedAccessSignature)\s*=\s*(?<secret>[A-Za-z0-9+/=%&:._-]{20,})", RegexOptions.Compiled)),
-            ("Bağlantı dizesi parolası", new Regex(@"(?i)\b(?:password|pwd)\s*=\s*(?<secret>[^;'""\s]{4,})", RegexOptions.Compiled)),
-            ("Parola/gizli değer ataması", new Regex(@"(?i)\b(?:api[_-]?key|secret|client[_-]?secret|access[_-]?token|auth[_-]?token|passwd|password)\b[""']?\s*[:=]\s*[""']?(?<secret>[^""'\s,;]{8,})", RegexOptions.Compiled)),
+            (() => L.T("Özel anahtar (private key)"), new Regex(@"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)", RegexOptions.Compiled)),
+            (() => L.T("AWS erişim anahtarı"), new Regex(@"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b", RegexOptions.Compiled)),
+            (() => "GitHub token", new Regex(@"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})\b", RegexOptions.Compiled)),
+            (() => "Slack token", new Regex(@"\bxox[abprs]-[A-Za-z0-9-]{10,}", RegexOptions.Compiled)),
+            (() => L.T("Google API anahtarı"), new Regex(@"\bAIza[0-9A-Za-z\-_]{35}\b", RegexOptions.Compiled)),
+            (() => L.T("Anthropic API anahtarı"), new Regex(@"\bsk-ant-[A-Za-z0-9\-_]{20,}", RegexOptions.Compiled)),
+            (() => L.T("API anahtarı (sk-…)"), new Regex(@"\bsk-(?:proj-)?[A-Za-z0-9_\-]{32,}\b", RegexOptions.Compiled)),
+            (() => L.T("Stripe anahtarı"), new Regex(@"\b[sr]k_live_[0-9A-Za-z]{20,}", RegexOptions.Compiled)),
+            (() => "JWT", new Regex(@"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}", RegexOptions.Compiled)),
+            (() => L.T("Azure/bağlantı anahtarı"), new Regex(@"(?i)\b(?:AccountKey|SharedAccessKey|SharedAccessSignature)\s*=\s*(?<secret>[A-Za-z0-9+/=%&:._-]{20,})", RegexOptions.Compiled)),
+            (() => L.T("Bağlantı dizesi parolası"), new Regex(@"(?i)\b(?:password|pwd)\s*=\s*(?<secret>[^;'""\s]{4,})", RegexOptions.Compiled)),
+            (() => L.T("Parola/gizli değer ataması"), new Regex(@"(?i)\b(?:api[_-]?key|secret|client[_-]?secret|access[_-]?token|auth[_-]?token|passwd|password)\b[""']?\s*[:=]\s*[""']?(?<secret>[^""'\s,;]{8,})", RegexOptions.Compiled)),
         };
 
         public static IReadOnlyList<SecretMatch> Scan(string text)
@@ -69,7 +70,7 @@ namespace ClaudeCodeVS.Privacy
                         continue;
                     }
 
-                    matches.Add(new SecretMatch(kind, index, length, LineOf(text, index)));
+                    matches.Add(new SecretMatch(kind(), index, length, LineOf(text, index)));
                 }
             }
 

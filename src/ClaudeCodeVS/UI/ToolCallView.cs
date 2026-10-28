@@ -9,6 +9,7 @@ using System.Windows.Media;
 using ClaudeCodeVS.Cli;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -115,7 +116,7 @@ namespace ClaudeCodeVS.UI
                 case "Skill":
                     return Value("skill") ?? Value("command");
                 case "TodoWrite":
-                    return $"{input?.Arr("todos")?.Count ?? 0} görev";
+                    return L.F("{0} görev", input?.Arr("todos")?.Count ?? 0);
                 default:
                     var first = input?.Properties().Select(p => p.Value).FirstOrDefault(v => v.Type == JTokenType.String);
                     return OneLine(first?.ToString());
@@ -137,7 +138,7 @@ namespace ClaudeCodeVS.UI
             if (content is JArray blocks)
             {
                 return string.Join("\n", blocks.OfType<JObject>()
-                    .Select(b => b.Str("type") == "text" ? b.Str("text") : b.Str("type") == "image" ? "[görsel]" : null)
+                    .Select(b => b.Str("type") == "text" ? b.Str("text") : b.Str("type") == "image" ? L.T("[görsel]") : null)
                     .Where(s => s != null));
             }
 
@@ -171,7 +172,7 @@ namespace ClaudeCodeVS.UI
                     return;
                 case "Read":
                     var lines = text.Length == 0 ? 0 : text.Count(c => c == '\n') + 1;
-                    AddDetail(Ui.Text($"{lines} satır okundu", Theme.MutedTextKey, 0.9));
+                    AddDetail(Ui.Text(L.F("{0} satır okundu", lines), Theme.MutedTextKey, 0.9));
                     return;
                 default:
                     if (!string.IsNullOrWhiteSpace(text))

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -47,7 +48,7 @@ namespace ClaudeCodeVS.Cli
                 var process = _process;
                 if (process == null || process.HasExited)
                 {
-                    throw new ClaudeProcessException("Claude Code oturumu çalışmıyor.");
+                    throw new ClaudeProcessException(L.T("Claude Code oturumu çalışmıyor."));
                 }
 
                 return process;

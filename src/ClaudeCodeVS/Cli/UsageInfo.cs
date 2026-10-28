@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -56,17 +57,17 @@ namespace ClaudeCodeVS.Cli
                     string label, shortLabel;
                     if (kind == "session" || group == "session")
                     {
-                        label = "Oturum (5 saat)";
-                        shortLabel = "Oturum";
+                        label = L.T("Oturum (5 saat)");
+                        shortLabel = L.T("Oturum");
                     }
                     else if (group == "weekly")
                     {
-                        label = model != null ? $"{model} limiti (haftalık)" : "Haftalık (tüm modeller)";
-                        shortLabel = model ?? "Haftalık";
+                        label = model != null ? L.F("{0} limiti (haftalık)", model) : L.T("Haftalık (tüm modeller)");
+                        shortLabel = model ?? L.T("Haftalık");
                     }
                     else
                     {
-                        label = shortLabel = model ?? kind ?? group ?? "Limit";
+                        label = shortLabel = model ?? kind ?? group ?? L.T("Limit");
                     }
 
                     info.Limits.Add(new UsageLimit
@@ -83,12 +84,12 @@ namespace ClaudeCodeVS.Cli
             }
 
             // Older CLI builds only expose the named windows.
-            AddWindow(info, rateLimits.Obj("five_hour"), "Oturum (5 saat)", "Oturum");
-            AddWindow(info, rateLimits.Obj("seven_day"), "Haftalık (tüm modeller)", "Haftalık");
+            AddWindow(info, rateLimits.Obj("five_hour"), L.T("Oturum (5 saat)"), L.T("Oturum"));
+            AddWindow(info, rateLimits.Obj("seven_day"), L.T("Haftalık (tüm modeller)"), L.T("Haftalık"));
             foreach (var scoped in rateLimits.Arr("model_scoped")?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
             {
-                var name = scoped.Str("display_name") ?? "Model";
-                AddWindow(info, scoped, $"{name} limiti (haftalık)", name);
+                var name = scoped.Str("display_name") ?? L.T("Model");
+                AddWindow(info, scoped, L.F("{0} limiti (haftalık)", name), name);
             }
 
             return info;

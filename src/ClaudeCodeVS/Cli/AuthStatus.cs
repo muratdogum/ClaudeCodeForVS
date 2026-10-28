@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -45,7 +46,7 @@ namespace ClaudeCodeVS.Cli
         public bool UsesCloudProvider => ApiProvider != null && ApiProvider != "firstParty";
 
         public string ShortName =>
-            !LoggedIn ? "Giriş yapılmadı"
+            !LoggedIn ? L.T("Giriş yapılmadı")
             : UsesCloudProvider ? ProviderName
             : !string.IsNullOrEmpty(OrgName) ? OrgName
             : !string.IsNullOrEmpty(Email) ? Email
@@ -57,12 +58,12 @@ namespace ClaudeCodeVS.Cli
             {
                 switch (AuthMethod)
                 {
-                    case "claude.ai": return "Claude aboneliği (claude.ai)";
-                    case "console": return "Anthropic Console (API faturalı)";
-                    case "api_key": return "API anahtarı";
-                    case "third_party": return "Bulut sağlayıcısı kimlik bilgileri";
-                    case "none": return "Yok";
-                    default: return AuthMethod ?? "Bilinmiyor";
+                    case "claude.ai": return L.T("Claude aboneliği (claude.ai)");
+                    case "console": return L.T("Anthropic Console (API faturalı)");
+                    case "api_key": return L.T("API anahtarı");
+                    case "third_party": return L.T("Bulut sağlayıcısı kimlik bilgileri");
+                    case "none": return L.T("Yok");
+                    default: return AuthMethod ?? L.T("Bilinmiyor");
                 }
             }
         }
@@ -91,9 +92,9 @@ namespace ClaudeCodeVS.Cli
                     case null: return null;
                     case "team": return "Team";
                     case "enterprise": return "Enterprise";
-                    case "pro": return "Pro (kişisel)";
-                    case "max": return "Max (kişisel)";
-                    case "free": return "Free (kişisel)";
+                    case "pro": return L.T("Pro (kişisel)");
+                    case "max": return L.T("Max (kişisel)");
+                    case "free": return L.T("Free (kişisel)");
                     default: return SubscriptionType;
                 }
             }
@@ -183,7 +184,7 @@ namespace ClaudeCodeVS.Cli
                     {
                     }
 
-                    throw new TimeoutException("claude " + arguments + " yanıt vermedi.");
+                    throw new TimeoutException(L.F("claude {0} yanıt vermedi.", arguments));
                 }
 
                 await errors.ConfigureAwait(false);

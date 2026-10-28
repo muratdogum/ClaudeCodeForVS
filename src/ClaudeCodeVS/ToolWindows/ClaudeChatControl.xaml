@@ -1,7 +1,8 @@
-<UserControl x:Class="ClaudeCodeVS.ToolWindows.ClaudeChatControl"
+﻿<UserControl x:Class="ClaudeCodeVS.ToolWindows.ClaudeChatControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vsui="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0">
+             xmlns:vsui="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:loc="clr-namespace:ClaudeCodeVS.Localization">
     <UserControl.Resources>
         <SolidColorBrush x:Key="CcAccent" Color="#D97757" />
         <SolidColorBrush x:Key="CcAccentHover" Color="#E38B6E" />
@@ -286,17 +287,17 @@
         <Border x:Name="HeaderBorder" Grid.Row="0" Padding="6,4" BorderThickness="0,0,0,1">
             <DockPanel LastChildFill="False">
                 <Button x:Name="NewSessionButton" DockPanel.Dock="Left" Style="{StaticResource CcGhostButton}" Padding="8,4"
-                        ToolTip="Yeni sohbet başlat (/clear)" Click="OnNewSessionClick">
+                        ToolTip="{loc:Loc 'Yeni sohbet başlat (/clear)'}" Click="OnNewSessionClick">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE710;" FontFamily="{StaticResource CcIconFont}" FontSize="11" Margin="0,1,7,0" VerticalAlignment="Center" />
-                        <TextBlock Text="Yeni sohbet" VerticalAlignment="Center" />
+                        <TextBlock Text="{loc:Loc 'Yeni sohbet'}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="HistoryButton" DockPanel.Dock="Left" Style="{StaticResource CcGhostButton}" Padding="8,4"
-                        ToolTip="Geçmiş sohbetler" Click="OnHistoryClick">
+                        ToolTip="{loc:Loc 'Geçmiş sohbetler'}" Click="OnHistoryClick">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE81C;" FontFamily="{StaticResource CcIconFont}" FontSize="11" Margin="0,1,7,0" VerticalAlignment="Center" />
-                        <TextBlock Text="Geçmiş" VerticalAlignment="Center" />
+                        <TextBlock Text="{loc:Loc 'Geçmiş'}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="AccountBadge" DockPanel.Dock="Right" Style="{StaticResource CcGhostButton}" Padding="7,3" Margin="2,0,0,0"
@@ -338,22 +339,25 @@
                                  MinHeight="38" MaxHeight="220" VerticalScrollBarVisibility="Auto" AllowDrop="True"
                                  PreviewKeyDown="OnInputPreviewKeyDown" TextChanged="OnInputTextChanged"
                                  PreviewDragOver="OnInputDragOver" PreviewDrop="OnInputDrop" />
-                        <TextBlock x:Name="InputPlaceholder" Margin="2,0,0,0" IsHitTestVisible="False" TextWrapping="Wrap"
-                                   Text="Claude'a bir şey sorun…  (@ dosya, / komut, Ctrl+V görsel)" />
+                        <TextBlock x:Name="InputPlaceholder" Margin="2,0,0,0" IsHitTestVisible="False" TextWrapping="Wrap">
+                            <TextBlock.Text>
+                                <loc:Loc Key="Claude'a bir şey sorun…  (@ dosya, / komut, Ctrl+V görsel)" />
+                            </TextBlock.Text>
+                        </TextBlock>
                     </Grid>
                     <DockPanel Margin="4,0,5,5">
                         <Grid DockPanel.Dock="Right" VerticalAlignment="Bottom" Margin="6,0,0,0">
                             <Button x:Name="SendButton" Style="{StaticResource CcSendButton}" Content="&#xE724;"
-                                    ToolTip="Gönder (Enter)" Click="OnSendClick" />
+                                    ToolTip="{loc:Loc 'Gönder (Enter)'}" Click="OnSendClick" />
                             <Button x:Name="StopButton" Style="{StaticResource CcStopButton}" Content="&#xE71A;"
-                                    ToolTip="Durdur (Esc)" Click="OnStopClick" Visibility="Collapsed" />
+                                    ToolTip="{loc:Loc 'Durdur (Esc)'}" Click="OnStopClick" Visibility="Collapsed" />
                         </Grid>
                         <WrapPanel VerticalAlignment="Center">
                             <ToggleButton x:Name="ContextToggle" Style="{StaticResource CcChipToggle}" Margin="0,2,2,2" />
                             <ComboBox x:Name="ModeCombo" Style="{StaticResource CcChipCombo}" Margin="0,2,2,2"
-                                      ToolTip="İzin modu" SelectionChanged="OnModeChanged" />
+                                      ToolTip="{loc:Loc 'İzin modu'}" SelectionChanged="OnModeChanged" />
                             <ComboBox x:Name="ModelCombo" Style="{StaticResource CcChipCombo}" Margin="0,2,2,2"
-                                      ToolTip="Model" SelectionChanged="OnModelChanged" />
+                                      ToolTip="{loc:Loc 'Model'}" SelectionChanged="OnModelChanged" />
                             <Button x:Name="ContextUsageButton" Style="{StaticResource CcGhostButton}" Padding="7,3" Margin="0,2,2,2"
                                     Visibility="Collapsed" Click="OnContextUsageClick">
                                 <StackPanel Orientation="Horizontal">

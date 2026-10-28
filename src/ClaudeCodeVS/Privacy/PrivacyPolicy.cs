@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Privacy
 {
@@ -233,33 +234,33 @@ namespace ClaudeCodeVS.Privacy
         {
             if (!Enabled)
             {
-                yield return "Gizlilik modu kapalı: Claude Code kendi varsayılan ayarlarıyla çalışır.";
+                yield return L.T("Gizlilik modu kapalı: Claude Code kendi varsayılan ayarlarıyla çalışır.");
                 yield break;
             }
 
-            yield return "Telemetri, hata raporu ve geri bildirim gönderimi kapalı.";
-            yield return "Veri yayınlayan/paylaşan araçlar engelli (artifact, paylaşım, uzak tetikleyici, bildirim).";
-            yield return AllowWebTools ? "Web araçları (WebFetch/WebSearch) açık." : "Web araçları (WebFetch/WebSearch) engelli.";
-            yield return AllowMcpServers ? "MCP sunucuları kullanılabilir." : "MCP sunucuları devre dışı (yalnızca yerleşik araçlar).";
+            yield return L.T("Telemetri, hata raporu ve geri bildirim gönderimi kapalı.");
+            yield return L.T("Veri yayınlayan/paylaşan araçlar engelli (artifact, paylaşım, uzak tetikleyici, bildirim).");
+            yield return AllowWebTools ? L.T("Web araçları (WebFetch/WebSearch) açık.") : L.T("Web araçları (WebFetch/WebSearch) engelli.");
+            yield return AllowMcpServers ? L.T("MCP sunucuları kullanılabilir.") : L.T("MCP sunucuları devre dışı (yalnızca yerleşik araçlar).");
             yield return BlockNetworkCommands
-                ? "Ağa veri taşıyan kabuk komutları engelli (curl, wget, Invoke-WebRequest, scp…)."
-                : "Kabuk komutları her seferinde onayınızı bekler; ağa veri gönderebilecek komutlar kartta uyarıyla işaretlenir.";
+                ? L.T("Ağa veri taşıyan kabuk komutları engelli (curl, wget, Invoke-WebRequest, scp…).")
+                : L.T("Kabuk komutları her seferinde onayınızı bekler; ağa veri gönderebilecek komutlar kartta uyarıyla işaretlenir.");
             yield return ProtectedPatterns.Count > 0
-                ? $"Korunan dosyalar okunamaz ve bağlama eklenmez ({ProtectedPatterns.Count} desen)."
-                : "Korunan dosya deseni tanımlı değil.";
-            yield return ScanSecrets ? "Gönderilen mesajlarda gizli bilgi taraması açık." : "Gizli bilgi taraması kapalı.";
-            yield return "\"İzinleri atla\" ve \"Otomatik\" modları kapalı; her işlem onayınızla yapılır.";
-            yield return AuditLog ? "Yerel gönderim günlüğü tutuluyor." : "Gönderim günlüğü kapalı.";
+                ? L.F("Korunan dosyalar okunamaz ve bağlama eklenmez ({0} desen).", ProtectedPatterns.Count)
+                : L.T("Korunan dosya deseni tanımlı değil.");
+            yield return ScanSecrets ? L.T("Gönderilen mesajlarda gizli bilgi taraması açık.") : L.T("Gizli bilgi taraması kapalı.");
+            yield return L.T("\"İzinleri atla\" ve \"Otomatik\" modları kapalı; her işlem onayınızla yapılır.");
+            yield return AuditLog ? L.T("Yerel gönderim günlüğü tutuluyor.") : L.T("Gönderim günlüğü kapalı.");
         }
 
         public static string ProviderName(ModelProvider provider)
         {
             switch (provider)
             {
-                case ModelProvider.AmazonBedrock: return "Amazon Bedrock (kendi AWS hesabınız)";
-                case ModelProvider.GoogleVertexAI: return "Google Vertex AI (kendi GCP projeniz)";
-                case ModelProvider.MicrosoftFoundry: return "Microsoft Foundry (kendi Azure kaynağınız)";
-                case ModelProvider.CorporateGateway: return "Kurumsal ağ geçidi (ANTHROPIC_BASE_URL)";
+                case ModelProvider.AmazonBedrock: return L.T("Amazon Bedrock (kendi AWS hesabınız)");
+                case ModelProvider.GoogleVertexAI: return L.T("Google Vertex AI (kendi GCP projeniz)");
+                case ModelProvider.MicrosoftFoundry: return L.T("Microsoft Foundry (kendi Azure kaynağınız)");
+                case ModelProvider.CorporateGateway: return L.T("Kurumsal ağ geçidi (ANTHROPIC_BASE_URL)");
                 default: return "Anthropic";
             }
         }

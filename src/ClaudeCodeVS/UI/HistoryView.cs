@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ClaudeCodeVS.Cli;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -14,6 +15,8 @@ namespace ClaudeCodeVS.UI
         private readonly StackPanel _list = new StackPanel { Margin = new Thickness(10, 2, 10, 14) };
         private readonly TextBox _search;
         private readonly TextBlock _placeholder;
+        private readonly Button _close;
+        private readonly TextBlock _title;
         private List<SessionSummary> _all = new List<SessionSummary>();
         private string _currentId;
 
@@ -22,12 +25,12 @@ namespace ClaudeCodeVS.UI
             this.Bind(BackgroundProperty, Theme.BackgroundKey);
 
             var header = new DockPanel { Margin = new Thickness(16, 10, 8, 6) };
-            var close = Ui.IconButton(Theme.Glyph.Cancel, () => Closed?.Invoke(), "Kapat (Esc)");
-            DockPanel.SetDock(close, Dock.Right);
-            header.Children.Add(close);
-            var title = Ui.Text("Geçmiş sohbetler", Theme.TextKey, 1.15, FontWeights.SemiBold, wrap: false);
-            title.VerticalAlignment = VerticalAlignment.Center;
-            header.Children.Add(title);
+            _close = Ui.IconButton(Theme.Glyph.Cancel, () => Closed?.Invoke(), L.T("Kapat (Esc)"));
+            DockPanel.SetDock(_close, Dock.Right);
+            header.Children.Add(_close);
+            _title = Ui.Text(L.T("Geçmiş sohbetler"), Theme.TextKey, 1.15, FontWeights.SemiBold, wrap: false);
+            _title.VerticalAlignment = VerticalAlignment.Center;
+            header.Children.Add(_title);
 
             _search = new TextBox { FontSize = Theme.ChatFontSize, Margin = new Thickness(0) };
             _search.SetResourceReference(StyleProperty, "CcComposerTextBox");
@@ -49,7 +52,7 @@ namespace ClaudeCodeVS.UI
                     SessionSelected?.Invoke(first);
                 }
             };
-            _placeholder = Ui.Text("Sohbetlerde ara…", Theme.MutedTextKey, wrap: false);
+            _placeholder = Ui.Text(L.T("Sohbetlerde ara…"), Theme.MutedTextKey, wrap: false);
             _placeholder.IsHitTestVisible = false;
             _placeholder.FontSize = Theme.ChatFontSize;
 
@@ -95,13 +98,22 @@ namespace ClaudeCodeVS.UI
         public void ShowLoading()
         {
             _list.Children.Clear();
-            _list.Children.Add(Ui.Text("Yükleniyor…", Theme.MutedTextKey).WithMargin(6, 8, 0, 0));
+            _list.Children.Add(Ui.Text(L.T("Yükleniyor…"), Theme.MutedTextKey).WithMargin(6, 8, 0, 0));
         }
 
         public void SetSessions(List<SessionSummary> sessions, string currentId)
         {
             _all = sessions ?? new List<SessionSummary>();
             _currentId = currentId;
+            Render();
+        }
+
+        /// <summary>Re-applies the texts after the UI language changed.</summary>
+        public void ApplyLanguage()
+        {
+            _close.ToolTip = L.T("Kapat (Esc)");
+            _title.Text = L.T("Geçmiş sohbetler");
+            _placeholder.Text = L.T("Sohbetlerde ara…");
             Render();
         }
 
@@ -124,7 +136,7 @@ namespace ClaudeCodeVS.UI
             var items = Filtered().ToList();
             if (items.Count == 0)
             {
-                var message = _all.Count == 0 ? "Bu klasörde henüz kaydedilmiş sohbet yok." : "Aramayla eşleşen sohbet yok.";
+                var message = _all.Count == 0 ? L.T("Bu klasörde henüz kaydedilmiş sohbet yok.") : L.T("Aramayla eşleşen sohbet yok.");
                 _list.Children.Add(Ui.Text(message, Theme.MutedTextKey).WithMargin(6, 8, 0, 0));
                 return;
             }
@@ -155,14 +167,14 @@ namespace ClaudeCodeVS.UI
                 meta.Add(session.Source);
             }
 
-            meta.Add($"{session.PromptCount} mesaj");
+            meta.Add(L.F("{0} mesaj", session.PromptCount));
             var metaText = Ui.Text(string.Join("  ·  ", meta), Theme.MutedTextKey, 0.85, wrap: false).WithMargin(0, 2, 0, 0);
 
             var stack = new StackPanel();
             var titleRow = new DockPanel();
             if (current)
             {
-                var badge = Ui.Text("şu anki", sizeFactor: 0.8, wrap: false).WithMargin(8, 1, 0, 0);
+                var badge = Ui.Text(L.T("şu anki"), sizeFactor: 0.8, wrap: false).WithMargin(8, 1, 0, 0);
                 badge.Foreground = Theme.Accent;
                 DockPanel.SetDock(badge, Dock.Right);
                 titleRow.Children.Add(badge);
@@ -190,15 +202,15 @@ namespace ClaudeCodeVS.UI
             var days = (DateTime.Today - time.Date).TotalDays;
             if (days < 1)
             {
-                return "Bugün";
+                return L.T("Bugün");
             }
 
             if (days < 2)
             {
-                return "Dün";
+                return L.T("Dün");
             }
 
-            return days < 7 ? "Son 7 gün" : days < 31 ? "Son 30 gün" : "Daha eski";
+            return days < 7 ? L.T("Son 7 gün") : days < 31 ? L.T("Son 30 gün") : L.T("Daha eski");
         }
     }
 }

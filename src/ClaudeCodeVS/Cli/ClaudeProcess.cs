@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -141,8 +142,11 @@ namespace ClaudeCodeVS.Cli
                 StandardErrorEncoding = Utf8,
             };
 
-            // Same environment hygiene as the official SDKs.
+            // Same environment hygiene as the official SDKs. The IDE connection variables are meant for terminals;
+            // the panel talks to Visual Studio directly.
             startInfo.EnvironmentVariables.Remove("CLAUDECODE");
+            startInfo.EnvironmentVariables.Remove("CLAUDE_CODE_SSE_PORT");
+            startInfo.EnvironmentVariables.Remove("ENABLE_IDE_INTEGRATION");
             startInfo.EnvironmentVariables["CLAUDE_CODE_ENTRYPOINT"] = "sdk-vs";
             foreach (var pair in options.Environment ?? new Dictionary<string, string>())
             {
@@ -157,7 +161,7 @@ namespace ClaudeCodeVS.Cli
             catch (Win32Exception ex)
             {
                 process.Dispose();
-                throw new ClaudeProcessException($"claude.exe başlatılamadı ({options.ExecutablePath}): {ex.Message}");
+                throw new ClaudeProcessException(L.F("claude.exe başlatılamadı ({0}): {1}", options.ExecutablePath, ex.Message));
             }
 
             var job = new JobObject();
@@ -346,7 +350,7 @@ namespace ClaudeCodeVS.Cli
             {
                 if (_pending.TryRemove(id, out var expired))
                 {
-                    expired.TrySetException(new TimeoutException($"Claude Code '{request.Str("subtype")}' isteğine zamanında yanıt vermedi."));
+                    expired.TrySetException(new TimeoutException(L.F("Claude Code '{0}' isteğine zamanında yanıt vermedi.", request.Str("subtype"))));
                 }
             }))
             {
@@ -391,7 +395,7 @@ namespace ClaudeCodeVS.Cli
             }
 
             _job.Dispose();
-            FailPending(new ClaudeProcessException("Claude Code oturumu kapatıldı."));
+            FailPending(new ClaudeProcessException(L.T("Claude Code oturumu kapatıldı.")));
             _process.Dispose();
         }
 
@@ -402,7 +406,7 @@ namespace ClaudeCodeVS.Cli
             {
                 if (_disposed != 0 || _exited)
                 {
-                    throw new ClaudeProcessException("Claude Code süreci çalışmıyor.");
+                    throw new ClaudeProcessException(L.T("Claude Code süreci çalışmıyor."));
                 }
 
                 try
@@ -412,7 +416,7 @@ namespace ClaudeCodeVS.Cli
                 }
                 catch (Exception ex) when (ex is IOException || ex is ObjectDisposedException)
                 {
-                    throw new ClaudeProcessException("Claude Code sürecine yazılamadı: " + ex.Message);
+                    throw new ClaudeProcessException(L.T("Claude Code sürecine yazılamadı: ") + ex.Message);
                 }
             }
         }
@@ -488,7 +492,7 @@ namespace ClaudeCodeVS.Cli
                 {
                     if (response.Str("subtype") == "error")
                     {
-                        completion.TrySetException(new ClaudeProcessException(response.Str("error") ?? "Claude Code isteği reddetti."));
+                        completion.TrySetException(new ClaudeProcessException(response.Str("error") ?? L.T("Claude Code isteği reddetti.")));
                     }
                     else
                     {
@@ -525,7 +529,7 @@ namespace ClaudeCodeVS.Cli
                 stderr = _stderr.ToString().Trim();
             }
 
-            var message = $"Claude Code süreci kapandı (çıkış kodu {exitCode?.ToString() ?? "?"}).";
+            var message = L.F("Claude Code süreci kapandı (çıkış kodu {0}).", exitCode?.ToString() ?? "?");
             FailPending(new ClaudeProcessException(stderr.Length > 0 ? message + "\n" + stderr : message));
 
             if (_disposed == 0)

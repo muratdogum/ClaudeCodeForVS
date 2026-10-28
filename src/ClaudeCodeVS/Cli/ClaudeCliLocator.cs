@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -23,9 +24,8 @@ namespace ClaudeCodeVS.Cli
         public static string NotFoundMessage(string configuredPath)
         {
             return !string.IsNullOrWhiteSpace(configuredPath)
-                ? $"Ayarlarda belirtilen claude.exe bulunamadı: {configuredPath}\n(Araçlar > Seçenekler > Claude Code)"
-                : "claude.exe bulunamadı. Claude Code'u kurun (PowerShell: irm https://claude.ai/install.ps1 | iex) " +
-                  "veya yolunu Araçlar > Seçenekler > Claude Code altında belirtin.";
+                ? L.F("Ayarlarda belirtilen claude.exe bulunamadı: {0}\n(Araçlar > Seçenekler > Claude Code)", configuredPath)
+                : L.T("claude.exe bulunamadı. Claude Code'u kurun (PowerShell: irm https://claude.ai/install.ps1 | iex) veya yolunu Araçlar > Seçenekler > Claude Code altında belirtin.");
         }
 
         private static IEnumerable<string> Candidates()

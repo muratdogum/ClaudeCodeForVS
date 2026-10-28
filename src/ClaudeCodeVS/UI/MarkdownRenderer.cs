@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.UI
 {
@@ -342,12 +343,12 @@ namespace ClaudeCodeVS.UI
 
         private Block MakeCodeBlock(string code, string language)
         {
-            var copyLabel = new TextBlock { Text = "Kopyala", VerticalAlignment = VerticalAlignment.Center };
+            var copyLabel = new TextBlock { Text = L.T("Kopyala"), VerticalAlignment = VerticalAlignment.Center };
             var copyGlyph = Ui.Glyph(Theme.Glyph.Copy, 10).WithMargin(0, 1, 5, 0);
             var copyContent = new StackPanel { Orientation = Orientation.Horizontal };
             copyContent.Children.Add(copyGlyph);
             copyContent.Children.Add(copyLabel);
-            var copy = new Button { Content = copyContent, ToolTip = "Kodu panoya kopyala", Padding = new Thickness(7, 2, 7, 2), FontSize = Theme.BaseFontSize * 0.9 };
+            var copy = new Button { Content = copyContent, ToolTip = L.T("Kodu panoya kopyala"), Padding = new Thickness(7, 2, 7, 2), FontSize = Theme.BaseFontSize * 0.9 };
             copy.SetResourceReference(FrameworkElement.StyleProperty, Theme.GhostButtonStyle);
             copy.SetResourceReference(Control.ForegroundProperty, Theme.MutedTextKey);
             copy.Click += (s, e) =>
@@ -355,19 +356,19 @@ namespace ClaudeCodeVS.UI
                 if (CopyToClipboard(code))
                 {
                     copyGlyph.Text = Theme.Glyph.Check;
-                    copyLabel.Text = "Kopyalandı";
+                    copyLabel.Text = L.T("Kopyalandı");
                     var reset = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
                     reset.Tick += (o, a) =>
                     {
                         reset.Stop();
                         copyGlyph.Text = Theme.Glyph.Copy;
-                        copyLabel.Text = "Kopyala";
+                        copyLabel.Text = L.T("Kopyala");
                     };
                     reset.Start();
                 }
             };
 
-            var insert = new Button { Content = Ui.IconLabel(Theme.Glyph.Paste, "Ekle", 10), ToolTip = "Aktif düzenleyicide imlecin bulunduğu yere ekle", Padding = new Thickness(7, 2, 7, 2), FontSize = Theme.BaseFontSize * 0.9 };
+            var insert = new Button { Content = Ui.IconLabel(Theme.Glyph.Paste, L.T("Ekle"), 10), ToolTip = L.T("Aktif düzenleyicide imlecin bulunduğu yere ekle"), Padding = new Thickness(7, 2, 7, 2), FontSize = Theme.BaseFontSize * 0.9 };
             insert.SetResourceReference(FrameworkElement.StyleProperty, Theme.GhostButtonStyle);
             insert.SetResourceReference(Control.ForegroundProperty, Theme.MutedTextKey);
             insert.Click += (s, e) => _host.InsertCode(code);
@@ -377,7 +378,7 @@ namespace ClaudeCodeVS.UI
             DockPanel.SetDock(insert, Dock.Right);
             header.Children.Add(copy);
             header.Children.Add(insert);
-            var label = Ui.Text(string.IsNullOrEmpty(language) ? "kod" : language, Theme.MutedTextKey, 0.85, wrap: false);
+            var label = Ui.Text(string.IsNullOrEmpty(language) ? L.T("kod") : language, Theme.MutedTextKey, 0.85, wrap: false);
             label.VerticalAlignment = VerticalAlignment.Center;
             label.Margin = new Thickness(4, 0, 0, 0);
             header.Children.Add(label);

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ClaudeCodeVS.Localization;
 
 namespace ClaudeCodeVS.Cli
 {
@@ -166,7 +167,7 @@ namespace ClaudeCodeVS.Cli
                 }
             }
 
-            var title = aiTitle ?? firstPrompt ?? lastPrompt ?? "(başlıksız)";
+            var title = aiTitle ?? firstPrompt ?? lastPrompt ?? L.T("(başlıksız)");
             title = Regex.Replace(title, @"\s+", " ").Trim();
             summary.Title = title.Length > 90 ? title.Substring(0, 90) + "…" : title;
             Cache[file.FullName] = (file.LastWriteTimeUtc, file.Length, summary);

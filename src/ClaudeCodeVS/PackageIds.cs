@@ -17,5 +17,6 @@ namespace ClaudeCodeVS
         public const int OpenClaudeCommand = 0x0100;
         public const int AddSelectionCommand = 0x0101;
         public const int ExplainSelectionCommand = 0x0102;
+        public const int OpenTerminalCommand = 0x0103;
     }
 }

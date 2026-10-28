@@ -37,6 +37,25 @@ namespace ClaudeCodeVS.Ide
         public string GetWorkingDirectory()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+            var folder = GetOpenFolder();
+            if (folder != null)
+            {
+                return folder;
+            }
+
+            var activeFile = GetActiveEditorContext()?.FilePath;
+            if (!string.IsNullOrEmpty(activeFile))
+            {
+                return NormalizeDirectory(Path.GetDirectoryName(activeFile));
+            }
+
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        /// <summary>The open solution's directory or the opened folder; null when neither is open.</summary>
+        public string GetOpenFolder()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
 
             // DTE reports the .sln path, or in "Open Folder" mode the opened folder itself.
             // (IVsSolution's directory is not the opened folder in that mode, so it is only a fallback.)
@@ -69,13 +88,7 @@ namespace ClaudeCodeVS.Ide
                 return NormalizeDirectory(directory);
             }
 
-            var activeFile = GetActiveEditorContext()?.FilePath;
-            if (!string.IsNullOrEmpty(activeFile))
-            {
-                return NormalizeDirectory(Path.GetDirectoryName(activeFile));
-            }
-
-            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return null;
         }
 
         public ContextItem GetActiveEditorContext()
